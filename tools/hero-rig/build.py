@@ -160,6 +160,12 @@ for d in scales:
 band &= (1 - dil(ring, 3)) & (1 - dil(shield, 2)) & (lum > 30).astype(np.uint8)
 band &= cv2.erode(fg, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31)))     # inside the body only: the outer curve stays crisp
 base = cv2.inpaint(base, band, 4, cv2.INPAINT_TELEA)
+# safety net: the real face stays on the base plate, 30 px inside the head's outline. The moving head always
+# covers it (its largest swing is ~20 px), but if a phone ever fails to draw the head layer you
+# see the normal face, never the dark patch.
+face_core = cv2.erode(head.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (61, 61)))
+fc = cv2.GaussianBlur(face_core.astype(np.float32), (0, 0), 3)[..., None]
+base = (base.astype(np.float32) * (1 - fc) + im.astype(np.float32) * fc).astype(np.uint8)
 base[static_top > 0] = im[static_top > 0]
 
 # shield layer: original shield, with the claws removed (rebuilt from the mirrored rim, matched in colour)

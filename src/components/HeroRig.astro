@@ -41,8 +41,9 @@ import { url } from "../lib/url";
   const setVis = () => { const v = onScreen && !document.hidden; if (v === visible) return; visible = v; if (v) { resume(); resumeRain(); } };
   new IntersectionObserver((es) => { onScreen = es[es.length - 1].isIntersecting; setVis(); }).observe(host || wrap);
   document.addEventListener("visibilitychange", setVis);
-  const RIG_V = "20261104";                           // bump when the rig files are rebuilt
+  const RIG_V = "20261104b";                           // bump when the rig files are rebuilt
   const AMP = Number(new URLSearchParams(location.search).get("amp") || 1);   // debug only: exaggerate motion
+  const DEBUG = new URLSearchParams(location.search).has("debug");
   const mouse = { x: .5, y: .5, sx: .5, sy: .5, on: 0, son: 0, vx: 0, vy: 0, near: 0 };
   type Pulse = { x: number; y: number; t: number; s: number };
   const pulses: Pulse[] = [];
@@ -120,6 +121,7 @@ import { url } from "../lib/url";
     petted(t: number) { if (t - this.lastPet < 3) return; this.lastPet = t; this.blinkT = t; this.blinkDbl = true;
       if (t - this.smileT > 6.5) this.smileT = t; this.tail.v += .012; },
   };
+  if (DEBUG) (window as any).__rig = { mouse, life, get happy() { return happy; }, get F() { return F; } };
 
   // ---------------------------------------------------------------- WebGL
   const VS = `
@@ -193,7 +195,22 @@ import { url } from "../lib/url";
       gl_FragColor = vec4(col.rgb, col.a);
     }`;
 
+  // self-repair: if any motion value ever becomes invalid (NaN / Infinity), reset it instead of letting it spread
+  const ok = (v: number) => Number.isFinite(v) && Math.abs(v) < 1e4;
+  const healers: (() => void)[] = [];
+  const heal = () => {
+    let bad = false;
+    for (const k of ["x", "y", "sx", "sy", "on", "son", "vx", "vy", "near"] as const) if (!ok(mouse[k])) { bad = true;
+      mouse[k] = k === "x" || k === "y" || k === "sx" || k === "sy" ? .5 : 0; }
+    if (!ok(happy)) { bad = true; happy = 0; }
+    for (const k of ["head", "arm", "tail", "claw", "tailTip"] as const) { const sp = life[k]; if (!ok(sp.x) || !ok(sp.v)) { bad = true; sp.x = sp.v = 0; } }
+    for (const k of ["smile", "nose", "blink", "tPaw", "wagA", "wagPh", "tTouch"] as const) if (!ok(life[k])) { bad = true; life[k] = 0; }
+    for (const h of healers) h();
+    if (bad && DEBUG) console.warn("rig: repaired an invalid value");
+  };
+  let gen = 0, rigT = 0;                                          // bumped when the graphics are lost, so an old loop stops
   const start = async () => {
+    const my = ++gen;
     const gl = cv.getContext("webgl", { premultipliedAlpha: false, antialias: true, alpha: true });
     if (!gl) { wrap.dataset.s = "nogl"; return; }
     wrap.dataset.s = "load";
@@ -234,6 +251,7 @@ import { url } from "../lib/url";
         cx: (s.pivot[0] + s.tip![0]) / 2, cy: (s.pivot[1] + s.tip![1]) / 2, ux: dx / L, uy: dy / L, L, lift: spring(.22, .7),
         flex: (.12 + .88 * ease(((s.out || .5) - .45) / .3)) * (1 - .85 * ease(((s.out || .5) - .8) / .12)) };                      // ~0.1 in the middle, 1 at the outer rim
     });
+    healers.length = 0; healers.push(() => { for (const q of scales) if (!ok(q.lift.x) || !ok(q.lift.v)) q.lift.x = q.lift.v = 0; });
     const scaleOf = new Map(scales.map((q) => [q.s, q] as const));
     const headPv = rig.sprites.find((s) => s.name === "head")!.pivot;
     const rotAbout = (a: number, px: number, py: number) => { const c = Math.cos(a), s = Math.sin(a);
@@ -255,13 +273,15 @@ import { url } from "../lib/url";
     wrap.classList.add("on"); fit(); addEventListener("resize", fit);
     const t0 = now(); let last = t0;
     const frame = () => {
+      if (my !== gen) return;
       if (!visible) { running = false; return; }
       const tn = now(); F = Math.min(3, Math.max(.25, (tn - last) * 60)); last = tn;
-      const t = tn - t0, g = gust(t);
+      const t = tn - t0, g = gust(t); rigT = t;
       mouse.sx += (mouse.x - mouse.sx) * ap(.35); mouse.sy += (mouse.y - mouse.sy) * ap(.35); mouse.son += (mouse.on - mouse.son) * ap(.12);
       const vk = Math.pow(.9, F); mouse.vx *= vk; mouse.vy *= vk; happy = Math.max(0, happy - .0025 * F);
       const nb = Math.hypot((mouse.sx - .5) / .55, (mouse.sy - .5) / .6); mouse.near += ((mouse.son && nb < 1.2 ? 1 : 0) * mouse.son - mouse.near) * ap(.12);
       life.step(t, g);
+      heal();
       while (pulses.length && t - pulses[0].t > 3) pulses.shift();
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(u.t, t); gl.uniform1f(u.light, g); gl.uniform1f(u.smile, life.smile); gl.uniform1f(u.nose, life.nose);
@@ -301,6 +321,9 @@ import { url } from "../lib/url";
     running = true; requestAnimationFrame(frame);
   };
   start().catch((e) => { console.warn("rig", e); wrap.dataset.s = "fail " + e; });
+  // phones can drop the graphics to save memory: show the still logo meanwhile, then rebuild the pangolin
+  cv.addEventListener("webglcontextlost", (e) => { e.preventDefault(); gen++; running = false; wrap.classList.remove("on"); });
+  cv.addEventListener("webglcontextrestored", () => { start().catch((e) => { console.warn("rig", e); }); });
 
   // ---------------------------------------------------------------- pointer + golden rain (same as the homepage)
   const RAIN = true;                                   // golden rain (settings identical to the homepage)
@@ -308,6 +331,9 @@ import { url } from "../lib/url";
   let rainAt = (_cx: number, _cy: number) => {}, rainOff = () => {};
   const feel = (cx: number, cy: number, mx: number, my: number) => {
     const c = cv.getBoundingClientRect();
+    if (!(c.width > 4 && c.height > 4) || !Number.isFinite(cx) || !Number.isFinite(cy)) return;   // not laid out yet / bad event
+    if (!Number.isFinite(mx)) mx = 0; if (!Number.isFinite(my)) my = 0;                          // e.g. a browser without movementX
+    mx = Math.max(-80, Math.min(80, mx)); my = Math.max(-80, Math.min(80, my));
     mouse.x = (cx - c.left) / c.width; mouse.y = (cy - c.top) / c.height;
     mouse.on = mouse.x > -.15 && mouse.x < 1.15 && mouse.y > -.15 && mouse.y < 1.15 ? 1 : 0;
     if (Math.hypot(cx - (c.left + .652 * c.width), cy - (c.top + .27 * c.height)) < 70 * c.width / 760) life.blinkNow(now());
@@ -327,7 +353,8 @@ import { url } from "../lib/url";
       const t = e.touches[0]; lastTouch = performance.now(); clearTimeout(liftT); tx = t.clientX; ty = t.clientY;
       feel(tx, ty, 0, 0);
       const c = cv.getBoundingClientRect(), bx = (mouse.x - .45) / .32, by = (mouse.y - .6) / .34;
-      if (mouse.on && bx * bx + by * by < 1.2) { happy = Math.min(1, happy + .35); life.petted(now()); }
+      if (mouse.on && bx * bx + by * by < 1.2) { happy = Math.min(1, happy + .35); life.petted(now());
+        pulses.push({ x: mouse.x * 1024, y: mouse.y * 757, t: rigT, s: 1.1 }); }
       if (c.width) for (let i = 0; i < 4; i++) rainAt(tx, ty);
     }, { passive: true });
     host.addEventListener("touchmove", (e) => {
