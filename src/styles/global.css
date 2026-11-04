@@ -224,4 +224,4 @@ button:where(.btn) { -webkit-appearance: none; appearance: none; background: tra
 .nowrap { white-space: nowrap; }
 
 /* problem (red) / solution (green) colour coding: colour only, no marker */
-.hl-risk { color: var(--risk); } .hl-safe { color: var(--safe); }
+.hl-risk { color: var(--risk); } .hl-safe { color: var(--bronze); }
