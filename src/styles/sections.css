@@ -40,9 +40,9 @@
 /* ---------- layouts ---------- */
 .split { display: grid; grid-template-columns: 1fr 300px; gap: 24px; }
 .safe-grid { display: grid; grid-template-columns: 1fr 1fr 300px; gap: 20px; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 @media (max-width: 960px) { .split, .safe-grid { grid-template-columns: 1fr; } }
-@media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .two { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- lifetime chart ---------- */
 .chart { margin: 0; }

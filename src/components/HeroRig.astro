@@ -35,6 +35,12 @@ import { url } from "../lib/url";
   const host = document.querySelector<HTMLElement>("[data-sparks]");
   const sp_cv = host?.querySelector<HTMLCanvasElement>("canvas.sparks");
   const now = () => performance.now() / 1000;
+  // pause both animations while the hero is off screen or the tab is hidden (smoother scrolling, less battery)
+  let visible = true, running = false, resume = () => {}, resumeRain = () => {};
+  let onScreen = true;
+  const setVis = () => { const v = onScreen && !document.hidden; if (v === visible) return; visible = v; if (v) { resume(); resumeRain(); } };
+  new IntersectionObserver((es) => { onScreen = es[es.length - 1].isIntersecting; setVis(); }).observe(host || wrap);
+  document.addEventListener("visibilitychange", setVis);
   const RIG_V = "20261104";                           // bump when the rig files are rebuilt
   const AMP = Number(new URLSearchParams(location.search).get("amp") || 1);   // debug only: exaggerate motion
   const mouse = { x: .5, y: .5, sx: .5, sy: .5, on: 0, son: 0, vx: 0, vy: 0, near: 0 };
@@ -51,7 +57,12 @@ import { url } from "../lib/url";
   const ease = (k: number) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
   const hump = (k: number, up: number, hold: number, down: number) =>
     k < 0 ? 0 : k < up ? ease(k / up) : k < up + hold ? 1 : ease(1 - (k - up - hold) / down);
-  const spring = (stiff: number, damp: number) => ({ x: 0, v: 0, stiff, damp, step(target: number) { this.v += (target - this.x) * this.stiff; this.v *= this.damp; this.x += this.v; } });
+  // all motion is tuned per 60 fps frame; F rescales it so phones (60/30 Hz) and fast screens (120/144 Hz) move the same
+  let F = 1;
+  const ap = (k: number) => 1 - Math.pow(1 - k, F);               // per-frame smoothing factor k, for this frame's length
+  const spring = (stiff: number, damp: number) => ({ x: 0, v: 0, stiff, damp, step(target: number) {
+    const n = F > 1.5 ? 2 : 1, f = F / n;                          // long frames: two half steps (keeps the springs stable)
+    for (let i = 0; i < n; i++) { this.v += (target - this.x) * this.stiff * f; this.v *= Math.pow(this.damp, f); this.x += this.v * f; } } });
 
   // ---------------------------------------------------------------- behaviour
   const life = {
@@ -73,7 +84,7 @@ import { url } from "../lib/url";
         else if (k === 1) { this.hKind = Math.floor(Math.random() * 3); this.hAmp = (.018 + .015 * Math.random()) * (Math.random() < .5 ? -1 : 1); this.hT = t; }
         else if (k === 2) pulses.push({ x: 200 + Math.random() * 500, y: 120 + Math.random() * 450, t, s: .5 + .4 * Math.random() });
         else this.patT = t; }
-      this.tTouch = tT; this.tPaw += (Math.min(1, tP * 2.2 + mouse.near * .4) - this.tPaw) * .5;   // quick little paw movement when the mouse is near
+      this.tTouch = tT; this.tPaw += (Math.min(1, tP * 2.2 + mouse.near * .4) - this.tPaw) * ap(.5);   // quick little paw movement when the mouse is near
       if (tT > .15 && t - this.shakeT > .8 + .6 * Math.random()) { this.shakeT = t; this.tAmp = .2 + .12 * Math.random(); this.tFreq = 2.6 + 1.6 * Math.random(); this.tDbl = Math.random() < .4;
         pulses.push({ x: 790, y: 470, t, s: 1.1 + .6 * Math.random() }); happy = Math.min(1, happy + .25); }
       if (tP > .18 && t - this.lastPawTouch > .7) { this.lastPawTouch = t; pulses.push({ x: 500, y: 360, t, s: .6 }); this.patT = t; this.claw.v -= .05; }
@@ -91,7 +102,7 @@ import { url } from "../lib/url";
       if (t > this.tailT + this.tailDur) { this.tailFrom = this.tailTo; this.tailTo = (Math.random() * 2 - 1) * .1; this.tailT = t; this.tailDur = 2.4 + Math.random() * 2.4; }
       const dt = Math.min(.05, t - this.lastT); this.lastT = t;
       this.wagPh += dt * (1.5 + 2.1 * mouse.near + 3.1 * happy + 3.5 * this.tTouch);                    // faster when near, fastest when petted
-      this.wagA += ((mouse.near * .14 + happy * .1 + this.tTouch * .3) - this.wagA) * (this.tTouch > .12 ? .3 : .06);
+      this.wagA += ((mouse.near * .14 + happy * .1 + this.tTouch * .3) - this.wagA) * ap(this.tTouch > .12 ? .3 : .06);
       const wag = this.wagA * (Math.sin(this.wagPh * 6.2832 / 2.2) + .25 * Math.sin(this.wagPh * 6.2832 / 1.1 + .6));
       const st_ = t - this.shakeT, shake = st_ > 0 && st_ < 2.2 ? this.tAmp * Math.sin(st_ * 6.2832 * this.tFreq) * (this.tDbl ? Math.exp(-((st_ - .55) ** 2) / .06) + Math.exp(-st_ * 3) : Math.exp(-st_ * 1.5)) : 0;
       this.tail.step((this.tailFrom + (this.tailTo - this.tailFrom) * ease((t - this.tailT) / this.tailDur)) * .85 + .045 * (g - .5) + wag + shake);
@@ -223,6 +234,8 @@ import { url } from "../lib/url";
         cx: (s.pivot[0] + s.tip![0]) / 2, cy: (s.pivot[1] + s.tip![1]) / 2, ux: dx / L, uy: dy / L, L, lift: spring(.22, .7),
         flex: (.12 + .88 * ease(((s.out || .5) - .45) / .3)) * (1 - .85 * ease(((s.out || .5) - .8) / .12)) };                      // ~0.1 in the middle, 1 at the outer rim
     });
+    const scaleOf = new Map(scales.map((q) => [q.s, q] as const));
+    const headPv = rig.sprites.find((s) => s.name === "head")!.pivot;
     const rotAbout = (a: number, px: number, py: number) => { const c = Math.cos(a), s = Math.sin(a);
       return [c, s, 0, -s, c, 0, px - c * px + s * py, py - s * px - c * py, 1]; };          // column-major mat3
     const mul = (A: number[], B: number[]) => { const r = new Array(9).fill(0);
@@ -237,14 +250,17 @@ import { url } from "../lib/url";
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
     const fit = () => { const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
-      cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); gl.viewport(0, 0, cv.width, cv.height); };
+      const w = Math.round(r.width * d), h = Math.round(r.height * d); if (w === cv.width && h === cv.height) return;
+      cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); };
     wrap.classList.add("on"); fit(); addEventListener("resize", fit);
-    const t0 = now();
+    const t0 = now(); let last = t0;
     const frame = () => {
-      const t = now() - t0, g = gust(t);
-      mouse.sx += (mouse.x - mouse.sx) * .35; mouse.sy += (mouse.y - mouse.sy) * .35; mouse.son += (mouse.on - mouse.son) * .12;
-      mouse.vx *= .9; mouse.vy *= .9; happy = Math.max(0, happy - .0025);
-      const nb = Math.hypot((mouse.sx - .5) / .55, (mouse.sy - .5) / .6); mouse.near += ((mouse.son && nb < 1.2 ? 1 : 0) * mouse.son - mouse.near) * .12;
+      if (!visible) { running = false; return; }
+      const tn = now(); F = Math.min(3, Math.max(.25, (tn - last) * 60)); last = tn;
+      const t = tn - t0, g = gust(t);
+      mouse.sx += (mouse.x - mouse.sx) * ap(.35); mouse.sy += (mouse.y - mouse.sy) * ap(.35); mouse.son += (mouse.on - mouse.son) * ap(.12);
+      const vk = Math.pow(.9, F); mouse.vx *= vk; mouse.vy *= vk; happy = Math.max(0, happy - .0025 * F);
+      const nb = Math.hypot((mouse.sx - .5) / .55, (mouse.sy - .5) / .6); mouse.near += ((mouse.son && nb < 1.2 ? 1 : 0) * mouse.son - mouse.near) * ap(.12);
       life.step(t, g);
       while (pulses.length && t - pulses[0].t > 3) pulses.shift();
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -253,11 +269,11 @@ import { url } from "../lib/url";
       // base plate (static)
       gl.bindTexture(gl.TEXTURE_2D, tBase); gl.uniform2f(u.atl, W, H); draw1({ rect: [0, 0, W, H], at: [0, 0] }, I, 0);
       gl.bindTexture(gl.TEXTURE_2D, tAtlas); gl.uniform2f(u.atl, rig.AW, rig.AH);
-      const mHead = rotAbout(life.head.x * AMP, ...(rig.sprites.find((s) => s.name === "head")!.pivot as [number, number]));
+      const mHead = rotAbout(life.head.x * AMP, headPv[0], headPv[1]);
       for (const sp of rig.sprites) {
         let M = I, kind = 0;
         if (sp.tip) {
-          const sc = scales.find((q) => q.s === sp)!;
+          const sc = scaleOf.get(sp)!;
           const w = gust(t - sc.delay);
           let a = sc.amp * .7 * (sc.k * (w - .35) + .22 * Math.sin(t * .9 + sc.ph) * w) * sc.flex;
           // petting: scales near the cursor lift and shiver; a stroke bends them the way the hand moves
@@ -281,27 +297,50 @@ import { url } from "../lib/url";
       }
       requestAnimationFrame(frame);
     };
-    requestAnimationFrame(frame);
+    resume = () => { if (running || !visible) return; running = true; last = now(); requestAnimationFrame(frame); };
+    running = true; requestAnimationFrame(frame);
   };
   start().catch((e) => { console.warn("rig", e); wrap.dataset.s = "fail " + e; });
 
   // ---------------------------------------------------------------- pointer + golden rain (same as the homepage)
   const RAIN = true;                                   // golden rain (settings identical to the homepage)
-  if (host && sp_cv) host.addEventListener("mousemove", (e) => {             // pointer only (no rain)
+  // one "feel" for mouse and finger: (cx, cy) = screen point, (mx, my) = movement since the last event
+  let rainAt = (_cx: number, _cy: number) => {}, rainOff = () => {};
+  const feel = (cx: number, cy: number, mx: number, my: number) => {
     const c = cv.getBoundingClientRect();
-    mouse.x = (e.clientX - c.left) / c.width; mouse.y = (e.clientY - c.top) / c.height;
+    mouse.x = (cx - c.left) / c.width; mouse.y = (cy - c.top) / c.height;
     mouse.on = mouse.x > -.15 && mouse.x < 1.15 && mouse.y > -.15 && mouse.y < 1.15 ? 1 : 0;
-    if (Math.hypot(e.clientX - (c.left + .652 * c.width), e.clientY - (c.top + .27 * c.height)) < 70) life.blinkNow(now());
-    mouse.vx += e.movementX / c.width * 1024 * .35; mouse.vy += e.movementY / c.height * 757 * .35;
+    if (Math.hypot(cx - (c.left + .652 * c.width), cy - (c.top + .27 * c.height)) < 70 * c.width / 760) life.blinkNow(now());
+    mouse.vx += mx / c.width * 1024 * .35; mouse.vy += my / c.height * 757 * .35;
     const bx = (mouse.x - .45) / .32, by = (mouse.y - .6) / .34;
-    if (bx * bx + by * by < 1) { const sp = Math.min(40, Math.hypot(e.movementX, e.movementY)); happy = Math.min(1, happy + sp * .0034);
+    if (bx * bx + by * by < 1) { const sp = Math.min(40, Math.hypot(mx, my) * 760 / c.width); happy = Math.min(1, happy + sp * .0034);
       petN += sp; if (petN > 280) { petN = 0; life.petted(now()); } }
-  });
-  host?.addEventListener("mouseleave", () => { mouse.on = 0; });
-  let petN = 0;
+    rainAt(cx, cy);
+  };
+  const leave = () => { mouse.on = 0; rainOff(); };
+  let petN = 0, lastTouch = -1e9, tx = 0, ty = 0, liftT = 0;
+  if (host && sp_cv) {
+    host.addEventListener("mousemove", (e) => { if (performance.now() - lastTouch > 800) feel(e.clientX, e.clientY, e.movementX, e.movementY); });
+    host.addEventListener("mouseleave", leave);
+    // phone / tablet: a tap pets it (happy + rain burst), a swipe strokes it; scrolling still works (passive)
+    host.addEventListener("touchstart", (e) => {
+      const t = e.touches[0]; lastTouch = performance.now(); clearTimeout(liftT); tx = t.clientX; ty = t.clientY;
+      feel(tx, ty, 0, 0);
+      const c = cv.getBoundingClientRect(), bx = (mouse.x - .45) / .32, by = (mouse.y - .6) / .34;
+      if (mouse.on && bx * bx + by * by < 1.2) { happy = Math.min(1, happy + .35); life.petted(now()); }
+      if (c.width) for (let i = 0; i < 4; i++) rainAt(tx, ty);
+    }, { passive: true });
+    host.addEventListener("touchmove", (e) => {
+      const t = e.touches[0]; lastTouch = performance.now();
+      feel(t.clientX, t.clientY, t.clientX - tx, t.clientY - ty); tx = t.clientX; ty = t.clientY;
+    }, { passive: true });
+    const lift = () => { lastTouch = performance.now(); clearTimeout(liftT); liftT = window.setTimeout(leave, 1400); };
+    host.addEventListener("touchend", lift, { passive: true }); host.addEventListener("touchcancel", lift, { passive: true });
+  }
   if (host && sp_cv && RAIN) {
     const ctx = sp_cv.getContext("2d")!;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const touchDev = matchMedia("(pointer: coarse)").matches;
+    const dpr = Math.min(touchDev ? 1.5 : 2, window.devicePixelRatio || 1), MAXP = touchDev ? 650 : 1600, PER = touchDev ? 4 : 7;
     const spr = document.createElement("canvas"); spr.width = spr.height = 48;
     const sc = spr.getContext("2d")!; const gr = sc.createRadialGradient(24, 24, 0, 24, 24, 24);
     gr.addColorStop(0, "rgba(255,250,232,1)"); gr.addColorStop(.12, "rgba(255,238,196,.95)");
@@ -309,32 +348,39 @@ import { url } from "../lib/url";
     sc.fillStyle = gr; sc.fillRect(0, 0, 48, 48);
     type P = { x: number; y: number; vx: number; vy: number; life: number; decay: number; r: number; tw: number; glint: boolean; g: number };
     const ps: P[] = []; let W = 0, H = 0, f = 0, rx = -9999, ry = -9999, lastRain = 0;
-    const fit = () => { const r = host.getBoundingClientRect(); W = r.width; H = r.height; sp_cv.width = W * dpr; sp_cv.height = H * dpr; };
+    const fit = () => { const r = host.getBoundingClientRect(); if (Math.abs(r.width - W) < 1 && Math.abs(r.height - H) < 1) return;
+      W = r.width; H = r.height; sp_cv.width = Math.round(W * dpr); sp_cv.height = Math.round(H * dpr); };
     fit(); window.addEventListener("resize", fit);
     const spawn = (x: number, y: number, n: number, spread: number, fall = 1, glow = 1) => {
       for (let i = 0; i < n; i++) ps.push({ x: x + (Math.random() - .5) * spread, y: y + (Math.random() - .5) * spread * .35,
         vx: (Math.random() - .5) * .2, vy: (.1 + Math.random() * .35) * fall, life: 1, decay: .0022 + Math.random() * .0035,
         r: .8 + Math.random() * 2, tw: Math.random() * 6.28, glint: Math.random() < .2 * glow, g: glow });
-      if (ps.length > 1600) ps.splice(0, ps.length - 1600);
+      if (ps.length > MAXP) ps.splice(0, ps.length - MAXP);
     };
     let petX = 0;
-    host.addEventListener("mousemove", (e) => {
-      const r = host.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    let burst = 0;
+    rainAt = (cx, cy) => {
+      const r = host.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
       rx = x; ry = y;
-      const tt = performance.now(); if (tt - lastRain > 22) { lastRain = tt; spawn(x, y - 30, 7, 320, .9, 1.3); }
-    });
-    host.addEventListener("mouseleave", () => { mouse.on = 0; rx = ry = -9999; });
+      const tt = performance.now();
+      if (tt - lastRain > 22) { lastRain = tt; burst = 0; spawn(x, y - 30, PER, Math.min(320, W * .8), .9, 1.3); }
+      else if (burst++ < 3) spawn(x, y - 30, PER, Math.min(320, W * .8), .9, 1.3);   // tap burst
+    };
+    rainOff = () => { rx = ry = -9999; };
+    let lastR = performance.now(), amb = 0;
     const frame = () => {
-      f++;
-      if (f % 3 === 0 && Math.random() < .81) spawn(Math.random() * W, Math.random() * H, 1, 0, .72, .7);
+      if (!visible) { rainRun = false; return; }
+      const tn = performance.now(), R = Math.min(3, Math.max(.25, (tn - lastR) / 16.667)); lastR = tn;   // frame length in 60 fps frames
+      f += R;
+      amb += .27 * R; while (amb >= 1) { amb -= 1; spawn(Math.random() * W, Math.random() * H, 1, 0, .72, .7); }   // ambient: same rate as before
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = "lighter";
       for (let i = ps.length - 1; i >= 0; i--) {
         const p = ps[i];
-        p.vy += .00108; p.vx += Math.sin((p.y + p.tw * 50) * .015) * .004; p.vx *= .985;
+        p.vy += .00108 * R; p.vx += Math.sin((p.y + p.tw * 50) * .015) * .004 * R; p.vx *= Math.pow(.985, R);
         const dx = p.x - rx, dy = p.y - ry, d2 = dx * dx + dy * dy; let near = 0;
-        if (d2 < 140 * 140) { const d = Math.sqrt(d2) || 1; near = 1 - d / 140; p.vx += (dx / d) * near * .06; }
-        p.x += p.vx; p.y += p.vy; p.life -= p.decay;
-        if (p.life <= 0 || p.y > H + 10) { ps.splice(i, 1); continue; }
+        if (d2 < 140 * 140) { const d = Math.sqrt(d2) || 1; near = 1 - d / 140; p.vx += (dx / d) * near * .06 * R; }
+        p.x += p.vx * R; p.y += p.vy * R; p.life -= p.decay * R;
+        if (p.life <= 0 || p.y > H + 10) { ps[i] = ps[ps.length - 1]; ps.pop(); continue; }   // additive glow: order doesn't matter
         const a = Math.min(1, (1 - p.life) * 10) * Math.min(1, p.life * 1.6) * (.6 + .4 * Math.sin(f * .09 + p.tw)) * p.g * (1 + .6 * near);
         ctx.globalAlpha = Math.min(1, a); const s = p.r * 7 * (p.g > 1 ? 1.45 : 1); ctx.drawImage(spr, p.x - s / 2, p.y - s / 2, s, s);
         if (p.glint && a > .35) {
@@ -344,6 +390,8 @@ import { url } from "../lib/url";
       }
       ctx.globalAlpha = 1; requestAnimationFrame(frame);
     };
+    let rainRun = true;
+    resumeRain = () => { if (rainRun || !visible) return; rainRun = true; lastR = performance.now(); requestAnimationFrame(frame); };
     requestAnimationFrame(frame);
   }
 </script>

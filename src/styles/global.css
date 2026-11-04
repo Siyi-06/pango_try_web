@@ -6,6 +6,13 @@
 @import "@fontsource-variable/fraunces";
 @import "@fontsource-variable/inter";
 
+/* Headings use Fraunces, but its ball-hook "f" is replaced by the slimmer, more elegant "f" from
+   Newsreader (OFL). unicode-range makes the browser take only the letter f from this face. */
+@font-face { font-family: "Pangolyn F"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url("../assets/fonts/newsreader-latin-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0066; }
+@font-face { font-family: "Pangolyn F"; font-style: italic; font-weight: 200 800; font-display: swap;
+  src: url("../assets/fonts/newsreader-latin-wght-italic.woff2") format("woff2-variations"); unicode-range: U+0066; }
+
 :root {
   /* surfaces */
   --ivory: #faf9f5;
@@ -28,7 +35,7 @@
   --bronze: #8f6226;        /* AA on ivory, for text & links */
 
   /* type */
-  --serif: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --serif: "Pangolyn F", "Fraunces Variable", Georgia, "Times New Roman", serif;
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* layout */
