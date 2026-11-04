@@ -34,6 +34,12 @@
   --gold-wash: #f6ecd9;
   --bronze: #8f6226;        /* AA on ivory, for text & links */
 
+  /* problem / solution coding: terracotta + sage, earthy partners to the bronze */
+  --risk: #b5482e;
+  --risk-wash: #f8e6e0;
+  --safe: #3f7a57;
+  --safe-wash: #e2eee5;
+
   /* type */
   --serif: "Pangolyn F", "Fraunces Variable", Georgia, "Times New Roman", serif;
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -138,10 +144,13 @@ em.accent { font-style: italic; color: var(--bronze); }
   transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
   white-space: nowrap;
 }
+/* iOS paints bare <button>s with system blue text and a grey fill; reset them to our look */
+button:where(.btn) { -webkit-appearance: none; appearance: none; background: transparent; color: inherit; cursor: pointer; margin: 0;
+             -webkit-tap-highlight-color: transparent; }
 .btn:hover { transform: translateY(-1px); }
 .btn--primary { background: var(--ink); color: var(--ivory); }
 .btn--primary:hover { background: #000; }
-.btn--ghost { border-color: var(--ink); color: var(--ink); }
+.btn--ghost { border-color: var(--ink); color: var(--ink); background: transparent; }
 .btn--ghost:hover { background: var(--ink); color: var(--ivory); }
 .btn--gold { background: var(--gold); color: var(--ink); }
 .btn--gold:hover { background: var(--gold-soft); }
@@ -213,3 +222,6 @@ em.accent { font-style: italic; color: var(--bronze); }
 
 .no-js .reveal { opacity: 1; transform: none; }
 .nowrap { white-space: nowrap; }
+
+/* problem (red) / solution (green) colour coding: colour only, no marker */
+.hl-risk { color: var(--risk); } .hl-safe { color: var(--safe); }

@@ -30,23 +30,23 @@ import HeroRig from "../components/HeroRig.astro";
     <div class="wrap">
       <div class="head reveal">
         <span class="eyebrow">The problem</span>
-        <h2>Quantum won't break your safe. It will break your key box.</h2>
+        <h2>Quantum won't break your <span class="hl-safe">safe</span>. It will break your <span class="hl-risk">key box</span>.</h2>
       </div>
       <div class="cards3 reveal">
-        <article class="card-x">
+        <article class="card-x risk">
           <span class="n">01</span>
           <h3>Your data outlives its keys</h3>
-          <p>Audit records are kept 7 years. Designs, contracts and archives far longer — well past 2035, when NIST retires RSA and ECC.</p>
+          <p>Audit records are kept 7 years. Designs, contracts and archives far longer — <span class="hl-risk">well past 2035</span>, when NIST retires RSA and ECC.</p>
         </article>
-        <article class="card-x">
+        <article class="card-x risk">
           <span class="n">02</span>
           <h3>The key box is the weak link</h3>
-          <p>AES-256 stays strong. The RSA/ECC lock on its key does not — open that, and the data opens too.</p>
+          <p><span class="hl-safe">AES-256 stays strong.</span> <span class="hl-risk">The RSA/ECC lock on its key does not</span> — open that, and the data opens too.</p>
         </article>
-        <article class="card-x">
+        <article class="card-x risk">
           <span class="n">03</span>
           <h3>Stolen today, opened tomorrow</h3>
-          <p>A backup copied now only needs to wait. Every nightly copy carries the same weak key box.</p>
+          <p>A backup copied now <span class="hl-risk">only needs to wait</span>. Every nightly copy carries the same weak key box.</p>
         </article>
       </div>
       <p class="more reveal"><a class="link" href={url("/why-quantum")}>Why quantum matters — the full picture →</a></p>
@@ -58,11 +58,12 @@ import HeroRig from "../components/HeroRig.astro";
     <div class="wrap">
       <div class="head reveal">
         <span class="eyebrow">Products</span>
-        <h2>Protection at rest, and at the root of every device.</h2>
+        <h2>Protection at <span class="w-rest">rest</span>, and at the <span class="w-root">root</span> of every device.</h2>
       </div>
       <div class="two reveal">
-        <a class="product" href={url("/cipherguard")}>
+        <a class="product rest" href={url("/cipherguard")}>
           <span class="chip"><span class="dot pulse"></span>In development</span>
+          <span class="pfor pfor-rest">For data at rest</span>
           <h3 class="pname">CipherGuard</h3>
           <p class="psub">Post-quantum protection for stored data. Re-protects the keys behind your databases, backups and archives — no mass re-encryption.</p>
           <div class="kswap" aria-label="Your data keeps its safe and its RSA key; Pangolyn adds a quantum-safe key box that locks the RSA key inside">
@@ -82,6 +83,7 @@ import HeroRig from "../components/HeroRig.astro";
         </a>
         <a class="product dark" href={url("/cipherlink")}>
           <span class="chip chip--night"><span class="dot pulse"></span>In development</span>
+          <span class="pfor pfor-root">For the root of every device</span>
           <h3 class="pname">CipherLink</h3>
           <p class="psub">Post-quantum trust for every device link. One firmware that lets PCIe and USB-C devices prove they are genuine with quantum-safe checks.</p>
           <div class="linkviz" aria-hidden="true">
@@ -151,6 +153,11 @@ import HeroRig from "../components/HeroRig.astro";
   .product { display: flex; flex-direction: column; gap: 16px; text-decoration: none; color: inherit; background: #fff; border: 1px solid var(--line);
              border-top: 4px solid var(--gold); padding: clamp(24px, 3vw, 38px); transition: transform .25s, box-shadow .25s; }
   .product:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -26px rgba(20,20,19,.4); }
+  /* solutions: "rest" and "root" share the brand gold */
+  .w-rest, .w-root { font-style: italic; font-weight: 500; }
+  .w-rest, .w-root { color: var(--bronze); }
+  .pfor { font: 600 .74rem/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; margin-bottom: -8px; }
+  .pfor-rest { color: var(--bronze); } .pfor-root { color: var(--gold); }
   .product.dark { background: #000; color: #e9e6dc; border-color: #000; border-top-color: var(--gold); }
   .pname { font-size: clamp(1.9rem, 3vw, 2.5rem); font-weight: 600; } .product.dark .pname { color: #fff; }
   .psub { color: var(--ink-soft); } .product.dark .psub { color: #b9b4a8; }

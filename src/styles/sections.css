@@ -180,6 +180,7 @@
 /* ---------- cards & CTA ---------- */
 .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .card-x { background: #fff; border: 1px solid var(--line); padding: 26px; display: grid; gap: 10px; align-content: start; border-top: 4px solid var(--gold); }
+.card-x.risk { border-top-color: var(--risk); } .card-x.risk .n { color: var(--risk); }
 .card-x .n { font-family: var(--serif); color: var(--bronze); font-weight: 700; }
 .card-x h3 { font-size: 1.25rem; font-weight: 600; }
 .card-x p { color: var(--ink-soft); }
