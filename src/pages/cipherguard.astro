@@ -1,0 +1,177 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icons.astro";
+import Cta from "../components/Cta.astro";
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icons.astro";
+
+// --- data lifetime chart (years from 2026 to 2056) ---
+const Y0 = 2026, Y1 = 2056;
+const pct = (y: number) => ((y - Y0) / (Y1 - Y0)) * 100;
+const lifetime = [
+  { label: "Designs, IP & source code", end: 2050, note: "as long as it's an advantage", hi: true },
+  { label: "Contracts & legal files", end: 2042, note: "contract term + retention" },
+  { label: "Audit & financial records", end: 2033, note: "7 yrs · SEC rule" },
+  { label: "Compliance documentation", end: 2032, note: "6 yrs · HIPAA" },
+  { label: "Backups & archives", end: 2036, note: "typically 7–10 yrs" },
+];
+
+const timeline = [
+  { when: "Today", title: "Tonight's backup", body: "Copied offsite, like every night.", tone: "gold" },
+  { when: "Next year", title: "A copy is stolen", body: "An insider, a ransomware gang or a supplier breach. Nothing looks missing.", tone: "gold" },
+  { when: "Date unknown", title: "Quantum capability", body: "No one knows when. Regulators already plan for it.", tone: "grey" },
+  { when: "Later", title: "The copy is opened", body: "The data is still valuable. The damage is done.", tone: "red" },
+];
+
+const hops = [
+  { head: "Production", sub: "Your data centre", body: "Customer, finance and operations data, backed up nightly.", copy: "Copy 1", icon: "db" },
+  { head: "Disaster recovery", sub: "Second site", body: "Replicated — and backed up again.", copy: "Copy 2", icon: "db" },
+  { head: "Long-term archive", sub: "Cloud or tape · 7–10 yrs", body: "Long-term copies, held by a provider.", copy: "Copies 3, 4, 5 …", icon: "cloud" },
+];
+
+const spots = [
+  { t: "Databases", d: "Keys locked with RSA — standard in SQL Server and many business systems." },
+  { t: "Backups & archives", d: "Every offsite or cloud copy carries its RSA-locked key." },
+  { t: "Keys on the move", d: "Keys sent over classical connections can be recorded today." },
+];
+const fails = [
+  { t: "SQL Server is locked to RSA", d: "On-premises SQL Server must use an RSA key box. No setting changes that." },
+  { t: "Re-encrypting is impractical", d: "Re-encrypting years of archives is slow, risky and expensive." },
+  { t: "Too many systems at once", d: "Hundreds of systems can't all change at once." },
+];
+
+const steps = [
+  { t: "Find", d: "Map every database and backup that relies on RSA — where it is, how long it's kept." },
+  { t: "Seal", d: "Seal every new backup quantum-safe before it leaves the site." },
+  { t: "Approve", d: "Opening a sealed backup takes several approvers — never one." },
+  { t: "Re-wrap", d: "Give old archives the same protection — verified before originals retire." },
+];
+
+const deadline = [
+  { y: "2024", t: "First quantum-safe standards", d: "NIST publishes FIPS 203, 204 and 205.", red: false },
+  { y: "2026", t: "The plan is final", d: "NIST fixes the date to retire RSA and ECC.", red: false },
+  { y: "2030", t: "RSA / ECC deprecated", d: "Allowed only with a documented risk decision.", red: true },
+  { y: "2035", t: "RSA / ECC disallowed", d: "No longer acceptable under NIST standards.", red: true },
+];
+
+const compare = [
+  ["Finds where RSA / ECC is used", "✓"],
+  ["Protects stored data, backups & archives", "Rarely"],
+  ["Contains SQL Server's RSA exposure", "Rarely"],
+  ["Post-quantum on by default", "Often optional"],
+  ["Keys stay in your own hardware", "Varies"],
+  ["Works fully offline (air-gapped)", "Varies"],
+];
+
+const team = ["Sayan Das", "Siyi Wang", "Yueqi Ma", "Anupam Chattopadhyay", "Jumeidi Dirwan Alexander"];
+
+const roadmap = [
+  { label: "CipherGuard core: Find & Seal", a: 0, b: 2.4, kind: "bar" },
+  { label: "Working demo", a: 2.5, kind: "ms" },
+  { label: "Approve & Re-wrap", a: 2.5, b: 4.6, kind: "bar" },
+  { label: "Early-access pilots", a: 3.5, b: 5.8, kind: "bar grey" },
+  { label: "CipherGuard v1", a: 6.5, kind: "ms" },
+];
+const mpct = (m: number) => (m / 7) * 100;
+---
+<Base title="CipherGuard — Pangolyn Systems" description="CipherGuard re-protects the keys behind your stored data with post-quantum cryptography.">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">CipherGuard · in development</span>
+      <h1>Re-protect the keys. <em>Not the data.</em></h1>
+      <p class="lede">CipherGuard swaps the weak RSA/ECC key box for a quantum-safe one across databases, backups and archives — rooted in hardware you own, crypto-agile by design.</p>
+    </div>
+  </section>
+  <!-- ===================== 3 OUR SOLUTION ===================== -->
+  <section class="section" id="solution">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">The idea</span>
+        <h2>Don't re-encrypt the data. Re-protect the keys.</h2>
+      </div>
+      <div class="safe-grid reveal">
+        <div class="tile">
+          <div class="tile-head grey">Today</div>
+          <div class="tile-body center">
+            <div class="pair"><figure><Icon kind="safe" size={104} /><figcaption>Your data</figcaption></figure>
+              <figure><Icon kind="keybox-weak" size={104} /><figcaption class="bad">RSA key box</figcaption></figure></div>
+            <h3>Strong safe, weak key box</h3>
+            <p class="bad i">Weak RSA/ECC lock on every key</p>
+          </div>
+        </div>
+        <div class="tile">
+          <div class="tile-head gold">With Pangolyn</div>
+          <div class="tile-body center wash">
+            <div class="pair"><figure><Icon kind="safe" size={104} /><figcaption>Your data</figcaption></figure>
+              <figure><Icon kind="keybox-safe" size={104} /><figcaption class="ok">Our key box</figcaption></figure></div>
+            <h3>Same safe, same key — plus our key box</h3>
+            <p class="ok i">The RSA key, locked in a quantum-safe key box</p>
+          </div>
+        </div>
+        <aside class="punch gold-bg">
+          <span class="big">0</span>
+          <p class="stmt">data re-encrypted. We only add the key box.</p>
+          <p class="small">Databases and applications keep working exactly as today.</p>
+        </aside>
+      </div>
+
+      <div class="head reveal mt" id="how">
+        <span class="status">In development · demo ~month 2</span>
+        <h2>Four steps from unknown risk to contained risk.</h2>
+      </div>
+      <ol class="steps reveal">
+        {steps.map((s, i) => <li class:list={{ first: i === 0 }}><span class="chev">{i + 1} &nbsp;{s.t}</span><p>{s.d}</p></li>)}
+      </ol>
+      <div class="result reveal"><b>Result:</b> breaking RSA is no longer enough to read your backup.</div>
+
+      <div class="head reveal mt">
+        <h2>Your keys. Your hardware. Never ours.</h2>
+      </div>
+      <div class="keys reveal">
+        <div class="fence">
+          <span class="label gold">Your environment</span>
+          <div class="fence-grid">
+            <div class="vault">
+              <svg width="64" height="40" viewBox="0 0 64 40" aria-hidden="true"><g stroke="#c8913f" stroke-width="5" fill="none" stroke-linecap="round"><circle cx="13" cy="20" r="9"/><path d="M22 20h34M48 20v10M56 20v12"/></g></svg>
+              <h3>Your hardware key vault</h3>
+              <p>One master key that can never be copied out</p>
+            </div>
+            <ul class="systems">
+              <li><Icon kind="db" size={40} /> Databases</li>
+              <li><Icon kind="cloud" size={40} /> Backups &amp; archives</li>
+              <li><Icon kind="db" size={40} /> Business systems</li>
+            </ul>
+          </div>
+        </div>
+        <div class="tile">
+          <div class="tile-head gold">Delivered your way</div>
+          <ul class="ticks"><li>Software on your servers</li><li>A Pangolyn hardware appliance</li><li>Your cloud, or fully offline</li></ul>
+        </div>
+      </div>
+      <div class="result reveal center"><b>No copies of your keys.</b> &nbsp; No data sent to us. &nbsp; <b>Verified hardware and software.</b> &nbsp; Crypto-agile by design.</div>
+      <div class="head reveal mt">
+        <h2>Others find the problem. We contain it.</h2>
+      </div>
+      <div class="table-wrap reveal">
+        <table class="compare">
+          <thead><tr><th></th><th>Typical quantum-safe offerings</th><th class="pg">Pangolyn (by design)</th></tr></thead>
+          <tbody>
+            {compare.map(([c, o]) => <tr><th scope="row">{c}</th><td>{o}</td><td class="pg">✓</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+      <p class="sources">Based on Pangolyn's review of public vendor documentation, Sept 2026; reflects typical defaults, not every deployment.</p>
+
+      <div class="head reveal mt">
+        <h2>Questions we often hear</h2>
+      </div>
+      <div class="two reveal">
+        <div class="tile"><div class="tile-head gold">Isn't AES-256 already quantum-safe?</div><div class="tile-body"><p>Yes — the data lock is fine. The risk is the RSA/ECC lock on the key. That's what our key box protects.</p></div></div>
+        <div class="tile"><div class="tile-head">When will quantum computers arrive?</div><div class="tile-body"><p>No one knows. But data copied today only needs to wait. NIST plans to retire RSA/ECC by 2035.</p></div></div>
+        <div class="tile"><div class="tile-head">Do you need access to our data?</div><div class="tile-body"><p>No. Everything runs in your environment and your keys stay in your hardware.</p></div></div>
+        <div class="tile"><div class="tile-head">Do we have to change our databases?</div><div class="tile-body"><p>No. CipherGuard is designed to work through interfaces your databases already provide.</p></div></div>
+      </div>
+    </div>
+  </section>
+  <Cta />
+</Base>

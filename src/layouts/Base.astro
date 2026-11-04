@@ -1,0 +1,86 @@
+---
+import { url } from "../lib/url";
+import "../styles/global.css";
+import "../styles/sections.css";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+  darkHeader?: boolean;
+}
+const {
+  title = "Pangolyn Systems — Armour for the post-quantum era",
+  description = "Hardware-rooted, post-quantum protection for the data you store and the devices it moves through.",
+  darkHeader = false,
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- PRIVATE DRAFT: keep search engines out until launch. Remove at go-live. -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#faf9f5" />
+    <link rel="icon" href={url("/favicon.ico")} sizes="any" />
+    <link rel="icon" type="image/png" href={url("/favicon.png")} />
+    <link rel="apple-touch-icon" href={url("/brand/apple-touch-icon.png")} />
+    <script is:inline>document.documentElement.classList.remove("no-js");</script>
+  </head>
+  <body>
+    <Header dark={darkHeader} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // count-up for big numbers: <span data-count="3650" data-suffix=" yrs">
+      const countUp = (el: HTMLElement) => {
+        const end = Number(el.dataset.count), suffix = el.dataset.suffix ?? "";
+        const fmt = (n: number) => Math.round(n).toLocaleString("en-US") + suffix;
+        const t0 = performance.now(), dur = 1400;
+        const step = (t: number) => {
+          const p = Math.min(1, (t - t0) / dur), eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = fmt(end * eased);
+          if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      };
+
+      const els = document.querySelectorAll<HTMLElement>(".reveal");
+      const show = (el: HTMLElement) => {
+        el.classList.add("is-in");
+        el.querySelectorAll<HTMLElement>("[data-count]").forEach(countUp);
+      };
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (entries) => entries.forEach((e) => {
+            if (e.isIntersecting) { show(e.target as HTMLElement); io.unobserve(e.target); }
+          }),
+          { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+        );
+        els.forEach((el) => io.observe(el));
+      } else {
+        els.forEach(show);
+      }
+
+      // hero pangolin: gentle tilt toward the mouse
+      const art = document.querySelector<HTMLElement>("[data-tilt]");
+      if (art && window.matchMedia("(pointer: fine)").matches) {
+        window.addEventListener("mousemove", (e) => {
+          const r = art.getBoundingClientRect();
+          const dx = (e.clientX - (r.left + r.width / 2)) / window.innerWidth;
+          const dy = (e.clientY - (r.top + r.height / 2)) / window.innerHeight;
+          art.style.setProperty("--rx", `${(-dy * 5).toFixed(2)}deg`);
+          art.style.setProperty("--ry", `${(dx * 7).toFixed(2)}deg`);
+        });
+      }
+    </script>
+  </body>
+</html>

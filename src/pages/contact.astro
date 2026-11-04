@@ -1,0 +1,99 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Contact — Pangolyn Systems">
+  <section class="section">
+    <div class="wrap contact-grid">
+      <div class="section-head">
+        <span class="eyebrow">Contact</span>
+        <h1>Request a briefing.</h1>
+        <p class="lede">Tell us about your environment — what you store, how long you keep it, and which devices matter to you. We'll come back with where your quantum exposure sits and what it takes to close it.</p>
+      </div>
+
+      <form class="form" id="contact-form" novalidate>
+        <div class="row">
+          <label>Name<input name="name" required autocomplete="name" /></label>
+          <label>Company<input name="company" autocomplete="organization" /></label>
+        </div>
+        <label>Your email<input name="email" type="email" required autocomplete="email" /></label>
+        <label>How can we help?
+          <textarea name="message" rows="6" required placeholder="e.g. We keep 10 years of SQL Server backups and want to understand our quantum exposure."></textarea>
+        </label>
+
+        <p class="error" id="form-error" role="alert" hidden>Please fill in your name, email and message.</p>
+
+        <div class="send">
+          <span class="send-label">Send with</span>
+          <button type="submit" class="btn btn--primary" data-via="gmail">Gmail</button>
+          <button type="submit" class="btn btn--primary" data-via="outlook">Outlook</button>
+          <button type="submit" class="btn btn--ghost" data-via="app">Mail app</button>
+        </div>
+        <p class="muted small">Your message opens ready to send in the service you choose — nothing is stored on this site.</p>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // Address is assembled only on click, so it never appears in the page.
+  const to = ["sayandas.nita", "gmail.com"].join("@");
+  const form = document.getElementById("contact-form") as HTMLFormElement;
+  const err = document.getElementById("form-error")!;
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const via = ((e as SubmitEvent).submitter as HTMLElement | null)?.dataset.via ?? "app";
+    const f = new FormData(form);
+    const name = String(f.get("name") || "").trim();
+    const email = String(f.get("email") || "").trim();
+    const company = String(f.get("company") || "").trim();
+    const message = String(f.get("message") || "").trim();
+
+    if (!name || !email || !message || !/^\S+@\S+\.\S+$/.test(email)) {
+      err.hidden = false;
+      return;
+    }
+    err.hidden = true;
+
+    const subject = `Briefing request — ${name}${company ? ` (${company})` : ""}`;
+    const body = `${message}\n\n—\n${name}${company ? `\n${company}` : ""}\n${email}`;
+    const q = (o: Record<string, string>) =>
+      Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+
+    const urls: Record<string, string> = {
+      gmail: `https://mail.google.com/mail/?view=cm&fs=1&${q({ to, su: subject, body })}`,
+      outlook: `https://outlook.office.com/mail/deeplink/compose?${q({ to, subject, body })}`,
+      app: `mailto:${to}?${q({ subject, body })}`,
+    };
+    if (via === "app") window.location.href = urls.app;
+    else window.open(urls[via], "_blank", "noopener");
+  });
+</script>
+
+<style>
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 88px); align-items: start; }
+  .contact-grid .section-head { margin-bottom: 0; }
+  @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
+
+  .form {
+    display: grid; gap: 18px;
+    background: var(--sand); border: 1px solid var(--line); border-radius: 20px;
+    padding: clamp(22px, 3.5vw, 40px);
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+  label { display: grid; gap: 6px; font-size: 0.9rem; font-weight: 500; color: var(--ink-soft); }
+  input, textarea {
+    font: inherit; font-size: 1rem; font-weight: 400; color: var(--ink);
+    background: var(--ivory); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  textarea { resize: vertical; min-height: 140px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-wash); }
+  .send { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+  .send-label { font-size: 0.9rem; color: var(--muted); margin-right: 4px; }
+  .send .btn { cursor: pointer; }
+  .error { color: #a3361f; font-size: 0.92rem; }
+  .small { font-size: 0.85rem; }
+</style>

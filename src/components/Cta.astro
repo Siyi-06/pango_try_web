@@ -1,0 +1,27 @@
+---
+import { url } from "../lib/url";
+interface Props { title?: string; text?: string; }
+const { title = "Become an early-access partner.", text = "Be one of the first to run Pangolyn on your own systems — and help shape CipherGuard and CipherLink around your environment." } = Astro.props;
+const parts = text.split(" — ");
+---
+<section class="section sand">
+  <div class="wrap cta-light">
+    <div>
+      <h2>{title}</h2>
+      <p class="lede">{parts.length === 2 ? <>{parts[0]}{" "}<br class="lb" />{parts[1]}</> : text}</p>
+      <div class="cta-row">
+        <a href={url("/early-access")} class="btn btn--primary">Become a partner <span class="arrow">→</span></a>
+        <a href={url("/contact")} class="btn btn--ghost">Request a briefing</a>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+  .cta-light { display: grid; justify-items: center; text-align: center; }
+  @media (min-width: 760px) { .cta-light h2 { white-space: nowrap; } }
+  .cta-light .cta-row { justify-content: center; }
+  .cta-light h2 { font-weight: 600; }
+  .cta-light .lede { margin: 12px 0 22px; max-width: none; }
+  @media (max-width: 760px) { .cta-light .lb { display: none; } }
+  @media (max-width: 760px) { .cta-light { grid-template-columns: 1fr; justify-items: center; text-align: center; } .cta-light img { width: 150px; } }
+</style>

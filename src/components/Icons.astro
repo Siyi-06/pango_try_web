@@ -1,0 +1,53 @@
+---
+// Shared diagram icons (inline SVG). kind: safe | keybox-weak | keybox-safe | db | cloud
+interface Props { kind: string; size?: number; }
+const { kind, size = 96 } = Astro.props;
+---
+{kind === "safe" && (
+  <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Safe">
+    <rect x="8" y="6" width="84" height="80" rx="7" fill="#1f1f1f" />
+    <rect x="16" y="13" width="68" height="66" rx="4" fill="#2e2c28" stroke="#55524b" />
+    <rect x="9" y="22" width="6" height="9" fill="#8f6226" /><rect x="9" y="56" width="6" height="9" fill="#8f6226" />
+    <circle cx="46" cy="42" r="15" fill="none" stroke="#c8913f" stroke-width="3.5" />
+    <circle cx="46" cy="42" r="5.5" fill="#c8913f" />
+    <path d="M46 23v5M46 56v5M27 42h5M60 42h5" stroke="#c8913f" stroke-width="2.5" />
+    <rect x="71" y="30" width="4.5" height="24" fill="#c8913f" />
+    <text x="50" y="72" text-anchor="middle" font-size="9" font-weight="700" fill="#e6cb9a" font-family="Inter Variable, Segoe UI, Arial, sans-serif" letter-spacing=".3" style="font-variant-numeric: lining-nums">AES-256</text>
+    <rect x="16" y="86" width="12" height="6" fill="#1f1f1f" /><rect x="72" y="86" width="12" height="6" fill="#1f1f1f" />
+  </svg>
+)}
+{(kind === "keybox-weak" || kind === "keybox-safe") && (
+  <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={kind === "keybox-weak" ? "Weak key box" : "Quantum-safe key box"}>
+    <rect x="6" y="28" width="82" height="58" rx="4" fill={kind === "keybox-weak" ? "#f8e6e0" : "#ffffff"} stroke={kind === "keybox-weak" ? "#b5482e" : "#c8913f"} stroke-width={kind === "keybox-weak" ? 2.5 : 4} />
+    <g stroke={kind === "keybox-weak" ? "#b5482e" : "#8f6226"} stroke-width="5" fill="none" stroke-linecap="round">
+      <circle cx="28" cy="57" r="9" /><path d="M37 57h36M63 57v9M71 57v11" />
+    </g>
+    {kind === "keybox-weak" ? (
+      <g><circle cx="84" cy="26" r="13" fill="#b5482e" /><path d="M78 20l12 12M90 20L78 32" stroke="#fff" stroke-width="3.5" stroke-linecap="round" /></g>
+    ) : (
+      <g><path d="M72 12h24v14c0 9-6 15-12 18-6-3-12-9-12-18z" fill="#1f1f1f" /><path d="M84 18l2.5 6.5 6.5 2.5-6.5 2.5-2.5 6.5-2.5-6.5-6.5-2.5 6.5-2.5z" fill="#c8913f" /></g>
+    )}
+  </svg>
+)}
+{kind === "key-safe" && (
+  <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Key, now locked inside the key box">
+    <g stroke="#8f6226" stroke-width="5" fill="none" stroke-linecap="round" transform="translate(4 -6)">
+      <circle cx="28" cy="57" r="9" /><path d="M37 57h36M63 57v9M71 57v11" />
+    </g>
+  </svg>
+)}
+{kind === "db" && (
+  <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Database">
+    {[62, 40, 18].map((y) => (
+      <g>
+        <path d={`M18 ${y}v14c0 5 14 9 32 9s32-4 32-9v-14`} fill="#6e6e6e" stroke="#fff" stroke-width="2" />
+        <ellipse cx="50" cy={y} rx="32" ry="9" fill="#8a8a8a" stroke="#fff" stroke-width="2" />
+      </g>
+    ))}
+  </svg>
+)}
+{kind === "cloud" && (
+  <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Cloud archive">
+    <path d="M28 74h46a16 16 0 0 0 2-32 22 22 0 0 0-42-6 18 18 0 0 0-6 38z" fill="#8a8a8a" />
+  </svg>
+)}

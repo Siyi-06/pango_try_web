@@ -1,0 +1,38 @@
+---
+import { url } from "../lib/url";
+const year = new Date().getFullYear();
+const cols = [
+  { t: "Product", l: [["CipherGuard", "/cipherguard"], ["CipherLink", "/cipherlink"], ["Early access", "/early-access"]] },
+  { t: "Learn", l: [["Why quantum", "/why-quantum"], ["The deadline", "/why-quantum#deadline"]] },
+  { t: "Company", l: [["About", "/about"], ["Contact", "/contact"]] },
+];
+---
+<footer class="site-footer">
+  <div class="wrap top">
+    <div class="about">
+      <img src={url("/brand/logo-full-dark.webp")} alt="Pangolyn Systems" width="190" height="173" class="logo" />
+      <p class="tag">Armour for the post-quantum era.</p>
+    </div>
+    {cols.map((c) => (
+      <div><h4>{c.t}</h4><ul>{c.l.map(([a, h]) => <li><a href={url(h)}>{a}</a></li>)}</ul></div>
+    ))}
+  </div>
+  <div class="wrap bottom">
+    <span>© {year} Pangolyn Systems Pte. Ltd.</span>
+    <span>Your keys. Your hardware. Never ours.</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer { background: #000; color: #b9b4a8; padding: 56px 0 28px; font-size: 0.93rem; }
+  .top { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px; padding-bottom: 36px; align-items: start; }
+  h4 { margin-top: 0; }
+  .about { display: grid; justify-items: center; width: fit-content; align-content: start; }
+  .logo { width: 170px; margin-top: -8px; }
+  .tag { font-family: var(--serif); font-size: 1.1rem; color: #fff; margin-top: 10px; text-align: center; white-space: nowrap; }
+  h4 { font-family: var(--sans); font-weight: 800; font-size: 0.82rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  a { color: #b9b4a8; text-decoration: none; } a:hover { color: #fff; }
+  .bottom { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-top: 22px; border-top: 1px solid #222; }
+  @media (max-width: 860px) { .top { grid-template-columns: 1fr 1fr; } .about { grid-column: 1 / -1; } }
+</style>

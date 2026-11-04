@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+tools/hero-rig/preview/
+__pycache__/
+.env
+.env.*
+.DS_Store
+Thumbs.db

@@ -1,0 +1,63 @@
+---
+import { url } from "../lib/url";
+const nav = [
+  { label: "CipherGuard", href: "/cipherguard" },
+  { label: "CipherLink", href: "/cipherlink" },
+  { label: "Why quantum", href: "/why-quantum" },
+  { label: "About", href: "/about" },
+  { label: "Early access", href: "/early-access" },
+];
+const path = Astro.url.pathname.replace(/\/$/, "") || "/";
+const { dark = false } = Astro.props as { dark?: boolean };
+---
+<header class:list={["site-header", { dark }]}>
+  <div class="wrap bar">
+    <a class="brand" href={url("/")} aria-label="Pangolyn Systems home">
+      <img src={url(dark ? "/brand/mark-dark.webp" : "/brand/mark.webp")} alt="" width="58" height="42" class="brand-mark" />
+      <img src={url(dark ? "/brand/wordmark-dark.webp" : "/brand/wordmark.webp")} alt="Pangolyn Systems" width="150" height="27" class="brand-word" />
+    </a>
+    <nav class="nav" aria-label="Main">
+      {nav.map((n) => <a href={url(n.href)} class:list={["nav-link", { active: path.startsWith(url(n.href)) }]}>{n.label}</a>)}
+    </nav>
+    <div class="actions">
+      <a href={url("/contact")} class="btn btn--primary btn-sm">Request a briefing</a>
+      <details class="menu">
+        <summary aria-label="Open menu"><span></span><span></span></summary>
+        <div class="menu-panel">
+          {nav.map((n) => <a href={url(n.href)}>{n.label}</a>)}
+          <a href={url("/contact")} class="btn btn--primary">Request a briefing</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-header { position: sticky; top: 0; z-index: 50; background: var(--ivory);
+    border-bottom: 1px solid var(--line); }
+  .site-header.dark { background: #000; border-bottom-color: #1c1c1c; }
+  .dark .nav-link { color: #b9b4a8; } .dark .nav-link:hover { background: #161616; color: #fff; }
+  .dark .btn--primary { background: var(--gold); color: #000; } .dark .btn--primary:hover { background: var(--gold-soft); }
+  .dark .menu summary { border-color: #333; } .dark .menu summary span { background: #fff; }
+  .dark .menu-panel { background: #000; border-bottom-color: #1c1c1c; } .dark .menu-panel a:not(.btn) { color: #fff; border-bottom-color: #1c1c1c; }
+  .bar { display: flex; align-items: center; gap: 24px; height: 70px; }
+  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex-shrink: 0; }
+  .brand-mark { width: 58px; height: auto; } .brand-word { width: 150px; height: auto; }
+  .nav { display: flex; gap: 4px; margin-left: auto; }
+  .nav-link { text-decoration: none; font-size: 0.97rem; color: var(--ink-soft); padding: 8px 14px; border-radius: 999px; transition: background .2s, color .2s; }
+  .nav-link:hover { background: var(--sand); color: var(--ink); }
+  .nav-link.active { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--gold); border-radius: 0; }
+  .actions { display: flex; align-items: center; gap: 8px; }
+  .btn-sm { padding: 0.65em 1.1em; font-size: 0.9rem; }
+  .menu { display: none; position: relative; }
+  .menu summary { list-style: none; cursor: pointer; width: 42px; height: 42px; border-radius: 50%; display: grid; place-content: center; gap: 6px; border: 1px solid var(--line); }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu summary span { display: block; width: 18px; height: 1.5px; background: var(--ink); transition: transform .2s; }
+  .menu[open] summary span:first-child { transform: translateY(3.75px) rotate(45deg); }
+  .menu[open] summary span:last-child { transform: translateY(-3.75px) rotate(-45deg); }
+  .menu-panel { position: fixed; left: 0; right: 0; top: 70px; background: var(--ivory); border-bottom: 1px solid var(--line); padding: 12px var(--gutter) 24px; display: grid; gap: 4px; }
+  .menu-panel a:not(.btn) { text-decoration: none; font-family: var(--serif); font-size: 1.4rem; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .menu-panel .btn { margin-top: 16px; justify-content: center; }
+  @media (max-width: 960px) { .nav { display: none; } .actions { margin-left: auto; } .menu { display: block; } }
+  @media (max-width: 560px) { .actions > .btn { display: none; } .brand-word { width: 120px; } }
+</style>

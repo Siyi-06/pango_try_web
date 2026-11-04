@@ -1,0 +1,123 @@
+---
+import { url } from "../lib/url";
+import Base from "../layouts/Base.astro";
+import Cta from "../components/Cta.astro";
+
+const where = ["Confidential AI & cloud accelerators", "Storage & SSDs", "USB4 & Thunderbolt docks", "Chargers & cables", "Automotive & EV", "Defence & critical infrastructure"];
+const news = [
+  { t: "One firmware, two links", d: "One security core for PCIe inside the server and USB-C outside it." },
+  { t: "Hybrid by design", d: "Classical and post-quantum checks run side by side, so trust never drops." },
+  { t: "Quantum-safe USB-C", d: "Certificates sized for USB Power Delivery, where every byte counts." },
+  { t: "Safe from first boot", d: "Secure boot and firmware updates signed with post-quantum signatures." },
+];
+const handshake = [
+  { t: "Agree", d: "Device and host choose quantum-safe algorithms." },
+  { t: "Prove", d: "The device shows its signed certificate chain." },
+  { t: "Challenge", d: "It signs a fresh challenge. A fake device can't." },
+  { t: "Exchange", d: "A quantum-safe key exchange creates the link key." },
+  { t: "Encrypt", d: "From then on, every packet on the link is encrypted." },
+];
+---
+<Base title="CipherLink — Pangolyn Systems" description="CipherLink: post-quantum trust for PCIe and USB-C device links.">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">CipherLink · in development</span>
+      <h1>Post-quantum trust for <em>every device link.</em></h1>
+      <p class="lede">Servers, drives, docks and chargers prove who they are with classical signatures today. CipherLink is one firmware that makes those checks quantum-safe — so a fake or tampered device is refused before it connects.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">How it fits</span>
+        <h2>Every device must prove it's genuine.</h2>
+      </div>
+      <div class="cl-grid reveal">
+        <div class="cl-diagram" aria-label="A device and a system connect through the CipherLink security core">
+          <div class="cl-node"><small>PCIe or USB-C</small>Device<span>drive, accelerator, dock, charger…</span></div>
+          <div class="cl-wire"><i></i></div>
+          <div class="cl-node core"><small>Firmware</small>CipherLink<span>“prove you're genuine” — quantum-safe</span></div>
+          <div class="cl-wire"><i class="d2"></i></div>
+          <div class="cl-node"><small>Host</small>System<span>server, laptop, vehicle computer…</span></div>
+        </div>
+        <div class="tile">
+          <div class="tile-head">Where it matters</div>
+          <ul class="ticks">{where.map((w) => <li>{w}</li>)}</ul>
+        </div>
+      </div>
+
+      <div class="head reveal mt">
+        <span class="eyebrow">How a device is checked</span>
+        <h2>The handshake, in five steps.</h2>
+      </div>
+      <ol class="hs reveal">
+        {handshake.map((h, i) => <li><span class="hs-n">{i + 1}</span><h3>{h.t}</h3><p>{h.d}</p></li>)}
+      </ol>
+      <p class="hs-end reveal">Any device that fails a step is refused <b>before</b> it connects.</p>
+    </div>
+  </section>
+
+  <section class="section band-dark">
+    <div class="wrap">
+      <div class="dark-intro reveal">
+        <img src={url("/brand/mark-dark.webp")} alt="" width="200" height="148" />
+        <div>
+          <span class="eyebrow">What's new</span>
+          <h2 class="t2">Quantum-safe trust, built into the device itself.</h2>
+          <p class="dark-sub">Not just the server — every drive, dock and charger that connects to it.</p>
+        </div>
+      </div>
+      <div class="cards4 reveal">
+        {news.map((n, i) => (
+          <div class="tile"><div class:list={["tile-head", { gold: i === 0 }]}>{n.t}</div><div class="tile-body"><p>{n.d}</p></div></div>
+        ))}
+      </div>
+      <p class="note-dark reveal">Status: research → prototype. Built on the DMTF SPDM and USB Type-C Authentication standards.</p>
+    </div>
+  </section>
+
+  <Cta />
+</Base>
+
+<style>
+  .cl-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; align-items: stretch; }
+  .cl-diagram { display: flex; align-items: center; background: #f3f2ef; padding: 28px 20px; }
+  .cl-node { flex: 0 0 auto; width: 30%; background: #fff; border: 1px solid var(--line); padding: 16px; font-family: var(--serif); font-weight: 600; font-size: 1.15rem; display: grid; gap: 4px; }
+  .cl-node small { font: 600 .68rem/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .cl-node span { font: 400 .82rem/1.35 var(--sans); color: var(--ink-soft); font-style: italic; }
+  .cl-node.core { background: #000; color: #fff; border-color: #000; box-shadow: 0 0 0 0 rgba(200,145,63,.5); animation: glowc 3s ease-in-out infinite; }
+  .cl-node.core small { color: var(--gold); } .cl-node.core span { color: #b9b4a8; }
+  .cl-wire { flex: 1; height: 3px; background: var(--line); position: relative; overflow: hidden; }
+  .cl-wire i { position: absolute; top: 0; left: -40%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: travel 2.2s linear infinite; }
+  .cl-wire i.d2 { animation-delay: 1.1s; }
+  @keyframes travel { to { left: 100%; } }
+  @keyframes glowc { 0%,100% { box-shadow: 0 0 0 0 rgba(200,145,63,.45); } 50% { box-shadow: 0 0 0 10px rgba(200,145,63,0); } }
+  @media (max-width: 900px) { .cl-grid { grid-template-columns: 1fr; } .cl-diagram { flex-direction: column; } .cl-node { width: 100%; } .cl-wire { width: 3px; height: 28px; flex: none; } }
+
+  /* handshake: five equal steps on one connected track */
+  .hs { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; position: relative; }
+  .hs::before { content: ""; position: absolute; left: 10%; right: 10%; top: 22px; height: 2px; background: linear-gradient(90deg, #1f1f1f 80%, var(--gold)); }
+  .hs li { position: relative; display: grid; grid-template-rows: 44px auto 1fr; justify-items: center; text-align: center; gap: 10px; }
+  .hs-n { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: #1f1f1f; color: #fff;
+          font: 700 1.05rem/1 var(--sans); box-shadow: 0 0 0 6px var(--paper, #faf9f5); }
+  .hs li:last-child .hs-n { background: var(--gold); color: #1f1f1f; }
+  .hs h3 { font-size: 1.15rem; font-weight: 600; margin-top: 6px; }
+  .hs p { color: var(--ink-soft); font-size: .95rem; line-height: 1.5; background: #f3f2ef; padding: 14px 16px; width: 100%; height: 100%; }
+  .hs li:last-child p { background: var(--gold-wash, #f6ecd9); }
+  .hs-end { margin-top: 22px; text-align: center; color: var(--ink-soft); }
+  .reveal .hs li { opacity: 0; transform: translateY(10px); transition: opacity .5s, transform .5s; }
+  .reveal.is-in .hs li { opacity: 1; transform: none; }
+  .reveal.is-in .hs li:nth-child(2) { transition-delay: .12s; } .reveal.is-in .hs li:nth-child(3) { transition-delay: .24s; }
+  .reveal.is-in .hs li:nth-child(4) { transition-delay: .36s; } .reveal.is-in .hs li:nth-child(5) { transition-delay: .48s; }
+  @media (max-width: 900px) { .hs { grid-template-columns: 1fr; gap: 18px; } .hs::before { display: none; } }
+
+  .dark-intro { display: flex; align-items: center; gap: 28px; margin-bottom: 32px; }
+  .dark-intro img { width: 150px; }
+  .cards4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .cards4 .tile-head { white-space: nowrap; }
+  .dark-sub { color: #b9b4a8; margin-top: 8px; }
+  @media (max-width: 900px) { .cards4 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .cards4 { grid-template-columns: 1fr; } .dark-intro { flex-direction: column; align-items: flex-start; } }
+  .note-dark { margin-top: 22px; font-style: italic; }
+</style>

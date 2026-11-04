@@ -1,0 +1,124 @@
+---
+import { url } from "../lib/url";
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icons.astro";
+import Cta from "../components/Cta.astro";
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icons.astro";
+
+// --- data lifetime chart (years from 2026 to 2056) ---
+const Y0 = 2026, Y1 = 2056;
+const pct = (y: number) => ((y - Y0) / (Y1 - Y0)) * 100;
+const lifetime = [
+  { label: "Designs, IP & source code", end: 2050, note: "as long as it's an advantage", hi: true },
+  { label: "Contracts & legal files", end: 2042, note: "contract term + retention" },
+  { label: "Audit & financial records", end: 2033, note: "7 yrs · SEC rule" },
+  { label: "Compliance documentation", end: 2032, note: "6 yrs · HIPAA" },
+  { label: "Backups & archives", end: 2036, note: "typically 7–10 yrs" },
+];
+
+const timeline = [
+  { when: "Today", title: "Tonight's backup", body: "Copied offsite, like every night.", tone: "gold" },
+  { when: "Next year", title: "A copy is stolen", body: "An insider, a ransomware gang or a supplier breach. Nothing looks missing.", tone: "gold" },
+  { when: "Date unknown", title: "Quantum capability", body: "No one knows when. Regulators already plan for it.", tone: "grey" },
+  { when: "Later", title: "The copy is opened", body: "The data is still valuable. The damage is done.", tone: "red" },
+];
+
+const hops = [
+  { head: "Production", sub: "Your data centre", body: "Customer, finance and operations data, backed up nightly.", copy: "Copy 1", icon: "db" },
+  { head: "Disaster recovery", sub: "Second site", body: "Replicated — and backed up again.", copy: "Copy 2", icon: "db" },
+  { head: "Long-term archive", sub: "Cloud or tape · 7–10 yrs", body: "Long-term copies, held by a provider.", copy: "Copies 3, 4, 5 …", icon: "cloud" },
+];
+
+const spots = [
+  { t: "Databases", d: "Keys locked with RSA — standard in SQL Server and many business systems." },
+  { t: "Backups & archives", d: "Every offsite or cloud copy carries its RSA-locked key." },
+  { t: "Keys on the move", d: "Keys sent over classical connections can be recorded today." },
+];
+const fails = [
+  { t: "SQL Server is locked to RSA", d: "On-premises SQL Server must use an RSA key box. No setting changes that." },
+  { t: "Re-encrypting is impractical", d: "Re-encrypting years of archives is slow, risky and expensive." },
+  { t: "Too many systems at once", d: "Hundreds of systems can't all change at once." },
+];
+
+const steps = [
+  { t: "Find", d: "Map every database and backup that relies on RSA — where it is, how long it's kept." },
+  { t: "Seal", d: "Seal every new backup quantum-safe before it leaves the site." },
+  { t: "Approve", d: "Opening a sealed backup takes several approvers — never one." },
+  { t: "Re-wrap", d: "Give old archives the same protection — verified before originals retire." },
+];
+
+const deadline = [
+  { y: "2024", t: "First quantum-safe standards", d: "NIST publishes FIPS 203, 204 and 205.", red: false },
+  { y: "2026", t: "The plan is final", d: "NIST fixes the date to retire RSA and ECC.", red: false },
+  { y: "2030", t: "RSA / ECC deprecated", d: "Allowed only with a documented risk decision.", red: true },
+  { y: "2035", t: "RSA / ECC disallowed", d: "No longer acceptable under NIST standards.", red: true },
+];
+
+const compare = [
+  ["Finds where RSA / ECC is used", "✓"],
+  ["Protects stored data, backups & archives", "Rarely"],
+  ["Contains SQL Server's RSA exposure", "Rarely"],
+  ["Post-quantum on by default", "Often optional"],
+  ["Keys stay in your own hardware", "Varies"],
+  ["Works fully offline (air-gapped)", "Varies"],
+];
+
+const team = ["Sayan Das", "Siyi Wang", "Yueqi Ma", "Anupam Chattopadhyay", "Jumeidi Dirwan Alexander"];
+
+const roadmap = [
+  { label: "CipherGuard core: Find & Seal", a: 0, b: 2.4, kind: "bar" },
+  { label: "Working demo", a: 2.5, kind: "ms" },
+  { label: "Approve & Re-wrap", a: 2.5, b: 4.6, kind: "bar" },
+  { label: "Early-access pilots", a: 3.5, b: 5.8, kind: "bar grey" },
+  { label: "CipherGuard v1", a: 6.5, kind: "ms" },
+];
+const mpct = (m: number) => (m / 7) * 100;
+---
+<Base title="About — Pangolyn Systems" description="Who we are and why we are named after the pangolin.">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">About Pangolyn</span>
+      <h1>Armour for the post-quantum era.</h1>
+      <p class="lede">Pangolyn Systems is a Singapore company building post-quantum protection for long-lived data — founded by researchers who study how post-quantum cryptography is attacked.</p>
+    </div>
+  </section>
+  <section class="section band-dark">
+    <div class="wrap about-band">
+      <img src={url("/brand/logo-full-dark.webp")} alt="Pangolyn Systems" width="900" height="819" />
+      <div>
+        <span class="eyebrow">Why the pangolin</span>
+        <h2 class="t2">Layered armour, hard to the core.</h2>
+        <p>The pangolin survives by curling into overlapping scales no predator can open. That's how we design security: layer on layer, rooted in hardware, with nothing left for an attacker to pry loose.</p>
+      </div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap">
+      <div class="head reveal">
+        <h2>The people building it.</h2>
+      </div>
+      <div class="team reveal">
+        {team.map((n, i) => (
+          <div class="member">
+            <div class="photo">Photo</div>
+            <span class:list={["rule", { g: i === 0 }]}></span>
+            <h3>{n}</h3>
+            <p class="role">[Role]</p>
+          </div>
+        ))}
+      </div>
+      <p class="note-i">We publish research on attacking post-quantum cryptography — so we know where implementations break.</p>
+      <div class="head reveal mt">
+        <h2>Built on standards. On the path to certification.</h2>
+      </div>
+      <div class="two reveal">
+        <div class="tile"><div class="tile-head gold">Standards we build on</div>
+          <ul class="ticks"><li>NIST FIPS 203 &amp; 204: ML-KEM and ML-DSA</li><li>NSA CNSA 2.0, as a selectable mode</li><li>PKCS#11 and KMIP, for your existing HSMs and databases</li></ul></div>
+        <div class="tile"><div class="tile-head">Certification roadmap</div>
+          <ul class="ticks"><li>FIPS 140-3 module validation</li><li>Common Criteria</li><li>ISO/IEC 27001 and SOC 2 Type II</li><li>Independent cryptographic review before release</li></ul></div>
+      </div>
+    </div>
+  </section>
+  <Cta />
+</Base>

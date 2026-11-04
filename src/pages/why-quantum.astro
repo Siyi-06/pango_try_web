@@ -1,0 +1,249 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icons.astro";
+import Cta from "../components/Cta.astro";
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icons.astro";
+
+// --- data lifetime chart (years from 2026 to 2056) ---
+const Y0 = 2026, Y1 = 2056;
+const pct = (y: number) => ((y - Y0) / (Y1 - Y0)) * 100;
+const lifetime = [
+  { label: "Designs, IP & source code", end: 2050, note: "as long as it's an advantage", hi: true },
+  { label: "Contracts & legal files", end: 2042, note: "contract term + retention" },
+  { label: "Audit & financial records", end: 2033, note: "7 yrs · SEC rule" },
+  { label: "Compliance documentation", end: 2032, note: "6 yrs · HIPAA" },
+  { label: "Backups & archives", end: 2036, note: "typically 7–10 yrs" },
+];
+
+const timeline = [
+  { when: "Today", title: "Tonight's backup", body: "Copied offsite, like every night.", tone: "gold" },
+  { when: "Next year", title: "A copy is stolen", body: "An insider, a ransomware gang or a supplier breach. Nothing looks missing.", tone: "gold" },
+  { when: "Date unknown", title: "Quantum capability", body: "No one knows when. Regulators already plan for it.", tone: "grey" },
+  { when: "Later", title: "The copy is opened", body: "The data is still valuable. The damage is done.", tone: "red" },
+];
+
+const hops = [
+  { head: "Production", sub: "Your data centre", body: "Customer, finance and operations data, backed up nightly.", copy: "Copy 1", icon: "db" },
+  { head: "Disaster recovery", sub: "Second site", body: "Replicated — and backed up again.", copy: "Copy 2", icon: "db" },
+  { head: "Long-term archive", sub: "Cloud or tape · 7–10 yrs", body: "Long-term copies, held by a provider.", copy: "Copies 3, 4, 5 …", icon: "cloud" },
+];
+
+const spots = [
+  { t: "Databases", d: "Keys locked with RSA — standard in SQL Server and many business systems." },
+  { t: "Backups & archives", d: "Every offsite or cloud copy carries its RSA-locked key." },
+  { t: "Keys on the move", d: "Keys sent over classical connections can be recorded today." },
+];
+const fails = [
+  { t: "SQL Server is locked to RSA", d: "On-premises SQL Server must use an RSA key box. No setting changes that." },
+  { t: "Re-encrypting is impractical", d: "Re-encrypting years of archives is slow, risky and expensive." },
+  { t: "Too many systems at once", d: "Hundreds of systems can't all change at once." },
+];
+
+const steps = [
+  { t: "Find", d: "Map every database and backup that relies on RSA — where it is, how long it's kept." },
+  { t: "Seal", d: "Seal every new backup quantum-safe before it leaves the site." },
+  { t: "Approve", d: "Opening a sealed backup takes several approvers — never one." },
+  { t: "Re-wrap", d: "Give old archives the same protection — verified before originals retire." },
+];
+
+const deadline = [
+  { y: "2024", t: "First quantum-safe standards", d: "NIST publishes FIPS 203, 204 and 205.", red: false },
+  { y: "2026", t: "The plan is final", d: "NIST fixes the date to retire RSA and ECC.", red: false },
+  { y: "2030", t: "RSA / ECC deprecated", d: "Allowed only with a documented risk decision.", red: true },
+  { y: "2035", t: "RSA / ECC disallowed", d: "No longer acceptable under NIST standards.", red: true },
+];
+
+const compare = [
+  ["Finds where RSA / ECC is used", "✓"],
+  ["Protects stored data, backups & archives", "Rarely"],
+  ["Contains SQL Server's RSA exposure", "Rarely"],
+  ["Post-quantum on by default", "Often optional"],
+  ["Keys stay in your own hardware", "Varies"],
+  ["Works fully offline (air-gapped)", "Varies"],
+];
+
+const team = ["Sayan Das", "Siyi Wang", "Yueqi Ma", "Anupam Chattopadhyay", "Jumeidi Dirwan Alexander"];
+
+const roadmap = [
+  { label: "CipherGuard core: Find & Seal", a: 0, b: 2.4, kind: "bar" },
+  { label: "Working demo", a: 2.5, kind: "ms" },
+  { label: "Approve & Re-wrap", a: 2.5, b: 4.6, kind: "bar" },
+  { label: "Early-access pilots", a: 3.5, b: 5.8, kind: "bar grey" },
+  { label: "CipherGuard v1", a: 6.5, kind: "ms" },
+];
+const mpct = (m: number) => (m / 7) * 100;
+---
+<Base title="Why quantum matters — Pangolyn Systems" description="Why long-lived data is the quantum era's easiest target, and where the risk hides.">
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">Why quantum</span>
+      <h1>Your data will outlive the locks on its keys.</h1>
+      <p class="lede">Quantum computers won't break AES-256. They will break the RSA and ECC that protect its keys — and data copied today only needs to wait.</p>
+    </div>
+  </section>
+  <!-- ===================== 1 THE PROBLEM ===================== -->
+  <section class="section" id="problem">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">The problem</span>
+        <h2>Your data stays valuable for years. Its protection doesn't.</h2>
+      </div>
+      <div class="split reveal">
+        <figure class="chart" aria-label="How long each type of data must stay protected, compared with the 2030 and 2035 RSA/ECC deadlines">
+          <p class="label">How long each type of data must stay protected</p>
+          <div class="chart-body">
+            <div class="overlay" aria-hidden="true">
+              <div class="zone" style={`left:${pct(2030)}%`}><span>RSA / ECC no longer safe</span></div>
+              <div class="vline" style={`left:${pct(2030)}%`}></div>
+              <div class="vline" style={`left:${pct(2035)}%`}></div>
+            </div>
+            {lifetime.map((r) => (
+              <div class="row">
+                <span class:list={["rl", { strong: r.hi }]}>{r.label}</span>
+                <div class="track">
+                  <div class:list={["lbar", { hi: r.hi }]} style={`width:${pct(r.end)}%`}>{pct(r.end) > 45 && <span class="in">{r.note}</span>}</div>
+                  {pct(r.end) <= 45 && <span class="note" style={`left:${pct(r.end)}%`}>{r.note}</span>}
+                </div>
+              </div>
+            ))}
+            <div class="axis">
+              {[[2026, "2026", ""], [2030, "2030", "deprecated"], [2035, "2035", "disallowed"], [2045, "2045", ""], [2056, "2056", ""]].map(([y, t, sub]) => (
+                <span class:list={{ red: !!sub }} style={`left:${pct(y as number)}%`}><b>{t}</b>{sub && <small>{sub}</small>}</span>
+              ))}
+            </div>
+          </div>
+        </figure>
+        <aside class="punch">
+          <span class="big" data-count="7" data-suffix=" yrs">7 yrs</span>
+          <p class="stmt">is how long audit records must be kept. Designs and contracts last far longer.</p>
+          <p class="small">Still sensitive after 2035? It can be copied today and opened later.</p>
+        </aside>
+      </div>
+      <p class="sources">Sources:
+        <a href="https://doi.org/10.6028/NIST.IR.8547" target="_blank" rel="noopener">NIST IR 8547</a> ·
+        <a href="https://www.sec.gov/rules/final/33-8180.htm" target="_blank" rel="noopener">SEC Rule 33-8180 (audit records, 7 yrs)</a> ·
+        <a href="https://www.ecfr.gov/current/title-45/section-164.316" target="_blank" rel="noopener">45 CFR §164.316 (HIPAA documentation, 6 yrs)</a> · other periods illustrative</p>
+
+      <div class="head reveal mt">
+        <h2>Quantum won't break your safe. It will break your key box.</h2>
+      </div>
+      <div class="safe-grid reveal">
+        <div class="tile">
+          <div class="tile-head grey">What protects the data</div>
+          <div class="tile-body center">
+            <Icon kind="safe" size={120} />
+            <h3>The safe: AES-256 encryption</h3>
+            <p><b class="ok">✓ Strong.</b> Stays strong against quantum attacks.</p>
+          </div>
+        </div>
+        <div class="tile">
+          <div class="tile-head red">What protects the key</div>
+          <div class="tile-body center">
+            <Icon kind="keybox-weak" size={120} />
+            <h3>The key box: RSA / ECC</h3>
+            <p><b class="bad">✕ Weak.</b> Quantum computers will open it.</p>
+          </div>
+        </div>
+        <aside class="punch">
+          <p class="stmt">How the attack works</p>
+          <ol class="chain">
+            <li><b>Copy the backup</b><span>today — easy and unnoticed</span></li>
+            <li><b>Break the key box</b><span>RSA falls to quantum computers</span></li>
+            <li class="red"><b>Open the safe</b><span>with the recovered key</span></li>
+          </ol>
+          <p class="small gold">“We already use AES-256” is not the full answer.</p>
+        </aside>
+      </div>
+
+      <div class="head reveal mt">
+        <h2>Stolen today. Opened tomorrow.</h2>
+      </div>
+      <ol class="timeline reveal">
+        {timeline.map((e, i) => (
+          <li class={e.tone}>
+            <span class="when">{e.when}</span>
+            <span class="dot">{i + 1}</span>
+            <h3>{e.title}</h3>
+            <p>{e.body}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 2 WHERE RISK HIDES ===================== -->
+  <section class="section sand" id="risk">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">Where risk hides</span>
+        <h2>One backup. Thousands of exposed copies.</h2>
+      </div>
+      <div class="flow reveal">
+        {hops.map((h, i) => (
+          <>
+            <div class="tile">
+              <div class="tile-head">{h.head}</div>
+              <div class="tile-body">
+                <div class="icons"><Icon kind={h.icon} size={78} /><Icon kind="keybox-weak" size={58} /></div>
+                <p class="sub">{h.sub}</p>
+                <p>{h.body}</p>
+                <span class="copy">{h.copy}</span>
+              </div>
+            </div>
+            {i < hops.length - 1 && <span class="arrow-r" aria-hidden="true">▶</span>}
+          </>
+        ))}
+        <aside class="punch">
+          <span class="big" data-count="3650">3,650</span>
+          <p class="stmt">copies of one system after 10 years of nightly backups.</p>
+          <p class="small">Every copy carries a weak key box. The risk isn't one server — it's all of them.</p>
+        </aside>
+      </div>
+
+      <div class="head reveal mt">
+        <h2>Three hidden weak spots. No quick fix.</h2>
+      </div>
+      <div class="two reveal">
+        <div class="tile">
+          <div class="tile-head">Where the exposure hides</div>
+          <ul class="list">
+            {spots.map((s, i) => <li><span class="num">{i + 1}</span><div><h3>{s.t}</h3><p>{s.d}</p></div></li>)}
+          </ul>
+        </div>
+        <div class="tile">
+          <div class="tile-head red">Why “just upgrade” fails</div>
+          <ul class="list">
+            {fails.map((s) => <li><span class="x">✕</span><div><h3>{s.t}</h3><p>{s.d}</p></div></li>)}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 4 WHY PANGOLYN ===================== -->
+  <section class="section sand" id="deadline">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">Why now</span>
+        <h2>The deadline is already set.</h2>
+      </div>
+      <ol class="timeline deadline reveal">
+        {deadline.map((e, i) => (
+          <li class={e.red ? "red" : "gold"}>
+            <span class="when big-y">{e.y}</span>
+            <span class="dot">{i + 1}</span>
+            <h3>{e.t}</h3>
+            <p>{e.d}</p>
+          </li>
+        ))}
+      </ol>
+      <div class="result reveal"><b>So what:</b> data copied today that must stay private until 2040 is already at risk.</div>
+      <p class="sources">Sources:
+        <a href="https://doi.org/10.6028/NIST.FIPS.203" target="_blank" rel="noopener">NIST FIPS 203 (2024)</a> ·
+        <a href="https://doi.org/10.6028/NIST.IR.8547" target="_blank" rel="noopener">NIST IR 8547 (2026)</a></p>
+
+    </div>
+  </section>
+  <Cta />
+</Base>

@@ -1,0 +1,349 @@
+---
+import { url } from "../lib/url";
+// Layered pangolin (experimental, local test page only).
+// The flat artwork is cut into real layers (tools/hero-rig/build.py): ~40 scales, head, arm + claws, tail,
+// and a fixed shield + ring. Every part turns around its own joint, driven by one shared wind,
+// so nothing is stretched. Shield and ring never move; only their light changes, with the same gusts.
+---
+<div class="hr" aria-hidden="true">
+  <div class="hr-glow"></div>
+  <div class="hr-body">
+    <img class="hr-img" src={url("/brand/mark-dark.webp")} alt="" width="1024" height="757" />
+    <canvas class="hr-gl"></canvas>
+  </div>
+</div>
+
+<style>
+  .hr { position: relative; width: 100%; max-width: 760px; margin: 0 auto; }
+  .hr-glow { position: absolute; inset: -8% -2%; border-radius: 50%;
+             background: radial-gradient(closest-side, rgba(200,145,63,.20), rgba(200,145,63,.06) 60%, transparent 76%); }
+  .hr-body { position: relative; }
+  .hr-img { display: block; width: 100%; height: auto; }
+  .hr-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .hr.on .hr-img { visibility: hidden; }
+  .hr.on .hr-gl { display: block; }
+</style>
+
+<script>
+  type Sprite = { name: string; rect: number[]; at: number[]; pivot: number[]; parent: string; kind: number;
+                  tip?: number[]; out?: number; area?: number };
+  type Rig = { W: number; H: number; AW: number; AH: number; eye: number[]; mouth: number[]; nose: number[]; noseRoot: number[];
+               knuckle: number[]; body: number[]; ellipse: number[]; sprites: Sprite[] };
+
+  const wrap = document.querySelector<HTMLElement>(".hr")!;
+  const cv = wrap.querySelector<HTMLCanvasElement>(".hr-gl")!;
+  const host = document.querySelector<HTMLElement>("[data-sparks]");
+  const sp_cv = host?.querySelector<HTMLCanvasElement>("canvas.sparks");
+  const now = () => performance.now() / 1000;
+  const RIG_V = "20261104";                           // bump when the rig files are rebuilt
+  const AMP = Number(new URLSearchParams(location.search).get("amp") || 1);   // debug only: exaggerate motion
+  const mouse = { x: .5, y: .5, sx: .5, sy: .5, on: 0, son: 0, vx: 0, vy: 0, near: 0 };
+  type Pulse = { x: number; y: number; t: number; s: number };
+  const pulses: Pulse[] = [];
+  let happy = 0;                                       // 0 calm … 1 being petted; rises while stroking, fades slowly
+
+  // ---------------------------------------------------------------- the wind (shared by every part and both lights)
+  // a slow gust that never stops; it reaches the left of the body first and travels right
+  const gust = (t: number) => {
+    const g = .52 + .26 * Math.sin(t * .37) + .14 * Math.sin(t * .83 + 1.2) + .06 * Math.sin(t * 1.9 + .4);
+    return Math.max(.12, Math.min(1, g));
+  };
+  const ease = (k: number) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
+  const hump = (k: number, up: number, hold: number, down: number) =>
+    k < 0 ? 0 : k < up ? ease(k / up) : k < up + hold ? 1 : ease(1 - (k - up - hold) / down);
+  const spring = (stiff: number, damp: number) => ({ x: 0, v: 0, stiff, damp, step(target: number) { this.v += (target - this.x) * this.stiff; this.v *= this.damp; this.x += this.v; } });
+
+  // ---------------------------------------------------------------- behaviour
+  const life = {
+    head: spring(.06, .8), arm: spring(.12, .74), tail: spring(.09, .78), claw: spring(.05, .82), tailTip: spring(.05, .8),
+    wagPh: 0, wagA: 0, lastT: 0,
+    lastHeadTouch: -10, nextMoment: 4, tPaw: 0, tTouch: 0, shakeT: -10, patT: -10, hKind: 0, hAmp: 0, hT: -10, tAmp: .16, tFreq: 3.2, tDbl: false, lastPawTouch: -10, look: 0, lookUntil: 0, nextLook: 4, tailFrom: 0, tailTo: 0, tailT: 0, tailDur: 1, gripT: -20, nextGrip: 3,
+    smileT: -20, nextSmile: 5, smile: 0, sniffT: -10, nextSniff: 2.5, nose: 0,
+    blinkT: -10, blinkDbl: false, nextBlink: 2.6, blink: 0, petE: 0, lastPet: -10,
+    step(t: number, g: number) {
+      // how close the cursor is to each part (image uv), and how fast it moves
+      const touchAt = (u: number, v: number, r: number) => mouse.son * Math.exp(-(((mouse.sx - u) ** 2) + ((mouse.sy - v) ** 2)) / (2 * r * r));
+      const tH = touchAt(.68, .24, .12), tT = touchAt(.78, .6, .12), tP = touchAt(.51, .5, .11);
+      const sp = Math.min(1, Math.hypot(mouse.vx, mouse.vy) / 25);
+      if (tH > .2 && t - this.lastHeadTouch > .8 + .6 * Math.random()) { this.lastHeadTouch = t; pulses.push({ x: 700, y: 190, t, s: .8 + .6 * Math.random() });
+        this.hKind = Math.floor(Math.random() * 3); this.hAmp = (.03 + .025 * Math.random()) * (Math.random() < .5 ? -1 : 1); this.hT = t; this.head.v += .005 * (mouse.vx >= 0 ? 1 : -1); this.blinkT = t; this.blinkDbl = false; if (t - this.smileT > 5) this.smileT = t; }
+      // on its own, now and then: a small random 'moment' (tail flick, look around, scale shiver, paw pat)
+      if (t > this.nextMoment && mouse.son < .3) { this.nextMoment = t + 5 + Math.random() * 6; const k = Math.floor(Math.random() * 4);
+        if (k === 0) { this.shakeT = t; this.tAmp = .1 + .08 * Math.random(); this.tFreq = 2.2 + Math.random(); this.tDbl = Math.random() < .3; }
+        else if (k === 1) { this.hKind = Math.floor(Math.random() * 3); this.hAmp = (.018 + .015 * Math.random()) * (Math.random() < .5 ? -1 : 1); this.hT = t; }
+        else if (k === 2) pulses.push({ x: 200 + Math.random() * 500, y: 120 + Math.random() * 450, t, s: .5 + .4 * Math.random() });
+        else this.patT = t; }
+      this.tTouch = tT; this.tPaw += (Math.min(1, tP * 2.2 + mouse.near * .4) - this.tPaw) * .5;   // quick little paw movement when the mouse is near
+      if (tT > .15 && t - this.shakeT > .8 + .6 * Math.random()) { this.shakeT = t; this.tAmp = .2 + .12 * Math.random(); this.tFreq = 2.6 + 1.6 * Math.random(); this.tDbl = Math.random() < .4;
+        pulses.push({ x: 790, y: 470, t, s: 1.1 + .6 * Math.random() }); happy = Math.min(1, happy + .25); }
+      if (tP > .18 && t - this.lastPawTouch > .7) { this.lastPawTouch = t; pulses.push({ x: 500, y: 360, t, s: .6 }); this.patT = t; this.claw.v -= .05; }
+      if (t > this.nextLook) { this.look = (Math.random() * 2 - 1) * .035; this.lookUntil = t + 2 + Math.random() * 2; this.nextLook = t + 6 + Math.random() * 6; }
+      const look = t < this.lookUntil ? this.look : 0;
+      const hd = t - this.hT, hEnv = hd > 0 && hd < 2 ? Math.exp(-hd * 1.8) : 0;
+      const hReact = this.hKind === 0 ? this.hAmp * Math.sin(Math.min(hd, 1) * Math.PI) * hEnv * 1.6          // nod / look up
+                   : this.hKind === 1 ? this.hAmp * Math.sin(hd * 6.2832 * 2.2) * hEnv                       // little head shake
+                   : this.hAmp * .9 * ease(Math.min(1, hd * 2.5)) * hEnv * 1.4;                               // curious tilt
+      this.head.step(hReact + look * .6 * (1 - mouse.near) + mouse.near * Math.max(-.045, Math.min(.045, (mouse.sx - .62) * .09 + (mouse.sy - .3) * .05)) + .005 * Math.sin(t * .2) + .004 * (g - .5) + this.nose * .15 + happy * .01 * Math.sin(t * 1.6));
+      if (t > this.nextGrip) { this.gripT = t; this.nextGrip = t + 6 + Math.random() * 6; }
+      this.arm.step(.018 * Math.sin(t * .17) + .035 * hump(t - this.gripT, 1.8, 1.4, 2.2) + Math.min(1, happy + .5 * mouse.near) * .03 * Math.sin(t * 2.2)
+        + this.tPaw * (.032 * Math.sin(t * 8) + .014 * Math.sin(t * 13.1)) + (t - this.patT > 0 && t - this.patT < 1.8 ? .075 * Math.max(0, Math.sin((t - this.patT) * 6.2832 * 1.6)) * Math.exp(-(t - this.patT) * 1.4) : 0));   // pat-pat
+      this.claw.step(-.18 * hump(t - this.gripT - .5, 1.1, 1.2, 1.6) - .03 * Math.sin(t * .5) - Math.min(1, happy + .4 * mouse.near) * (.17 + .14 * Math.sin(t * 3.85)));
+      if (t > this.tailT + this.tailDur) { this.tailFrom = this.tailTo; this.tailTo = (Math.random() * 2 - 1) * .1; this.tailT = t; this.tailDur = 2.4 + Math.random() * 2.4; }
+      const dt = Math.min(.05, t - this.lastT); this.lastT = t;
+      this.wagPh += dt * (1.5 + 2.1 * mouse.near + 3.1 * happy + 3.5 * this.tTouch);                    // faster when near, fastest when petted
+      this.wagA += ((mouse.near * .14 + happy * .1 + this.tTouch * .3) - this.wagA) * (this.tTouch > .12 ? .3 : .06);
+      const wag = this.wagA * (Math.sin(this.wagPh * 6.2832 / 2.2) + .25 * Math.sin(this.wagPh * 6.2832 / 1.1 + .6));
+      const st_ = t - this.shakeT, shake = st_ > 0 && st_ < 2.2 ? this.tAmp * Math.sin(st_ * 6.2832 * this.tFreq) * (this.tDbl ? Math.exp(-((st_ - .55) ** 2) / .06) + Math.exp(-st_ * 3) : Math.exp(-st_ * 1.5)) : 0;
+      this.tail.step((this.tailFrom + (this.tailTo - this.tailFrom) * ease((t - this.tailT) / this.tailDur)) * .85 + .045 * (g - .5) + wag + shake);
+      this.tailTip.step(this.tail.x * 1.7);
+      if (t > this.nextSmile) { this.smileT = t; this.nextSmile = t + 9 + Math.random() * 7; }
+      this.smile = Math.max(hump(t - this.smileT, 1.25, 2.4, 1.7), Math.min(1, happy * 3));
+      if (t > this.nextSniff) { this.sniffT = t; this.nextSniff = t + 3.5 + Math.random() * 4; }
+      const sd = (t - this.sniffT) / 2.2, bump = (k: number) => (k > 0 && k < 1 ? Math.sin(k * Math.PI) ** 2 : 0);
+      this.nose = .075 * (bump(sd * 2) + .6 * bump(sd * 2 - 1)) + mouse.near * .025 * Math.max(0, Math.sin(t * 5.5)) ** 3;
+      if (t > this.nextBlink) { this.blinkT = t; this.blinkDbl = Math.random() < .3; this.nextBlink = t + 4.5 + Math.random() * 4; }
+      const one = (x: number) => (x < 0 || x > .62 ? 0 : x < .18 ? ease(x / .18) : x < .28 ? 1 : 1 - ease((x - .28) / .34));
+      const bd = t - this.blinkT; this.blink = Math.max(one(bd), this.blinkDbl ? one(bd - .75) : 0);
+    },
+    blinkNow(t: number) { if (t - this.blinkT > 1.4) { this.blinkT = t; this.blinkDbl = false; } },
+    petted(t: number) { if (t - this.lastPet < 3) return; this.lastPet = t; this.blinkT = t; this.blinkDbl = true;
+      if (t - this.smileT > 6.5) this.smileT = t; this.tail.v += .012; },
+  };
+
+  // ---------------------------------------------------------------- WebGL
+  const VS = `
+    attribute vec2 c; uniform vec4 rect; uniform vec2 at, img, atl; uniform mat3 M; uniform float pad;
+    varying vec2 vLocal, vImg;
+    void main(){ vec2 p = rect.xy - pad + c * (rect.zw + 2. * pad); vLocal = p; vec2 q = (M * vec3(p, 1.)).xy; vImg = q;
+      gl_Position = vec4(q.x / img.x * 2. - 1., 1. - q.y / img.y * 2., 0., 1.); }`;
+  const FS = `
+    precision highp float;
+    uniform sampler2D tex; uniform vec4 rect; uniform vec2 at, atl, img; uniform int kind;
+    uniform float t, light, smile, nose, blink, claw, cometA, squint, mon; uniform vec2 mpos;
+    uniform vec2 bRoot, bAx; uniform float bLen, bA, bA2;
+    uniform vec2 eye, mouth, noseP, noseRoot, knuckle; uniform vec4 ell; uniform float ellA;
+    varying vec2 vLocal, vImg;
+    vec2 rotP(vec2 p, vec2 c, float a){ vec2 d = p - c; float s = sin(a), k = cos(a); return c + vec2(k*d.x - s*d.y, s*d.x + k*d.y); }
+    vec4 S(vec2 p){ vec2 l = p - rect.xy; if (l.x < 0. || l.y < 0. || l.x > rect.z || l.y > rect.w) return vec4(0.);
+      return texture2D(tex, (at + l) / atl); }
+    void main(){
+      vec2 p = vLocal;
+      if (kind == 1) {                                   // head: smile, nose, (blink below)
+        vec2 dm = p - mouth; vec2 md = vec2(.78, .63), mn = vec2(.63, -.78);      // along the mouth line / its "up" side
+        float al = dot(dm, md), ac = dot(dm, mn);
+        // a smooth upturn at the corner: strongest right at the corner, easing off gently both ways
+        float lift = 6.5 * smile * exp(-al * al / (2. * (al < 0. ? 9. : 15.) * (al < 0. ? 9. : 15.)));
+        p -= mn * lift * exp(-ac * ac / (2. * 9. * 9.));
+        // happy eyes: the cheek pushes the bottom of the eye up (its own outline moves, nothing is painted on)
+        vec2 ee = (p - eye) / vec2(26.6, 25.7);
+        float wq = exp(-ee.x * ee.x / .9) * smoothstep(-.1, .85, ee.y) * (1. - smoothstep(.95, 2.1, ee.y));
+        p.y += wq * squint * 10.;
+        vec2 dn = p - noseP; float wn = exp(-dot(dn, dn) / 1300.);
+        p = mix(p, rotP(p, noseRoot, -nose), wn);
+      }
+      if (kind == 5) {                                   // bend like a leaf: nothing moves at the base, most at the tip
+        float k = clamp(dot(p - bRoot, bAx) / bLen, 0., 1.35);
+        float a = bA2 == bA ? bA * pow(smoothstep(.45, 1.05, k), 1.3)           // scale: fixed half, flexible half
+                            : bA * pow(k, 1.35) + (bA2 - bA) * k * k;            // tail: whip
+        vec2 rd = p - ell.xy; float rc = cos(ellA), rs = sin(ellA);
+        vec2 rn = vec2(rc*rd.x + rs*rd.y, -rs*rd.x + rc*rd.y) / ell.zw;
+        float ringPx = abs(length(rn) - 1.) * ell.w;                               // ~distance to the ring in px
+        if (bA2 == bA) a *= smoothstep(14., 85., ringPx);     // scales the ring crosses stay together
+        p = rotP(p, bRoot, -a);
+      }
+      if (kind == 4) {                                   // arm: the claws curl at the knuckles
+        vec2 dk = p - knuckle; float wk = smoothstep(70., 18., length(dk)) * step(knuckle.x - 14., p.x);
+        p = mix(p, rotP(p, knuckle, -claw), wk * 0.);
+      }
+      vec4 col = S(p);
+      if (col.a < .004) discard;
+      if (kind == 1 && blink > 0.) {
+        vec2 e = (p - eye) / vec2(26.6, 25.7);
+        if (length(e) < 1.) { float cover = -1. + blink * 2.;
+          if (e.y < cover) { float edge = smoothstep(cover - .27, cover, e.y);
+            col.rgb = mix(vec3(.972, .874, .714), vec3(.42, .29, .17), edge * .9); } }
+      }
+      float lum = max(col.r, max(col.g, col.b));
+      if (kind == 3) {                                   // ring: a light travels round it; brightness rides the gust
+        vec2 d = vImg - ell.xy; float cs = cos(ellA), sn = sin(ellA);
+        vec2 n = vec2(cs*d.x + sn*d.y, -sn*d.x + cs*d.y) / ell.zw; float a = atan(n.y, n.x);
+        float d1 = abs(mod(a - cometA + 3.1416, 6.2832) - 3.1416), d2 = abs(mod(a - cometA + .4 + 3.1416, 6.2832) - 3.1416);
+        col.rgb += vec3(1., .9, .72) * (exp(-d1 * d1 / .02) + .45 * exp(-d2 * d2 / .06)) * lum * (.45 + .55 * light);
+        vec2 dmo = vImg - mpos; col.rgb += vec3(1., .9, .72) * exp(-dot(dmo, dmo) / (2. * 85. * 85.)) * lum * .85 * mon;
+        col.rgb *= .94 + .08 * light;
+      }
+      if (kind == 2) {                                   // shield: its shine follows the ring light, same gust
+        float cx = mix(ell.x + ell.z * cos(cometA), mpos.x, mon); float front = max(smoothstep(-.2, .6, sin(cometA)), mon);
+        float band = exp(-pow((vImg.x - cx) / 60., 2.)) * front;
+        vec2 dms = vImg - mpos; col.rgb += vec3(1., .9, .7) * exp(-dot(dms, dms) / (2. * 70. * 70.)) * smoothstep(.3, .8, lum) * .35 * mon;
+        col.rgb += vec3(1., .9, .7) * band * smoothstep(.35, .8, lum) * (.25 + .35 * light);
+        col.rgb *= .95 + .07 * light;
+      }
+      gl_FragColor = vec4(col.rgb, col.a);
+    }`;
+
+  const start = async () => {
+    const gl = cv.getContext("webgl", { premultipliedAlpha: false, antialias: true, alpha: true });
+    if (!gl) { wrap.dataset.s = "nogl"; return; }
+    wrap.dataset.s = "load";
+    const [rig, atlas, base] = await Promise.all([
+      fetch(import.meta.env.BASE_URL.replace(/\/$/, "") + "/rig/rig.json?v=" + RIG_V).then((r) => r.json() as Promise<Rig>),
+      new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = import.meta.env.BASE_URL.replace(/\/$/, "") + "/rig/atlas.png?v=" + RIG_V; }),
+      new Promise<HTMLImageElement>((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = import.meta.env.BASE_URL.replace(/\/$/, "") + "/rig/base.png?v=" + RIG_V; }),
+    ]);
+    const mk = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.warn(gl.getShaderInfoLog(s)); wrap.dataset.err = String(gl.getShaderInfoLog(s)).slice(0, 300); } return s; };
+    const pr = gl.createProgram()!; gl.attachShader(pr, mk(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { wrap.dataset.s = "link"; return; } gl.useProgram(pr);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+    const lc = gl.getAttribLocation(pr, "c"); gl.enableVertexAttribArray(lc); gl.vertexAttribPointer(lc, 2, gl.FLOAT, false, 0, 0);
+    const tex = (im: HTMLImageElement) => { const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return tx; };
+    const tAtlas = tex(atlas), tBase = tex(base);
+    const names = ["rect", "at", "img", "atl", "M", "kind", "t", "light", "smile", "nose", "blink", "claw", "cometA", "eye", "mouth", "noseP", "noseRoot", "knuckle", "ell", "ellA", "tex", "pad", "squint", "bRoot", "bAx", "bLen", "bA", "bA2", "mon", "mpos"];
+    const u: Record<string, WebGLUniformLocation | null> = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(pr, n)]));
+    const { W, H } = rig;
+    gl.uniform2f(u.img, W, H); gl.uniform1i(u.tex, 0);
+    gl.uniform2f(u.eye, rig.eye[0], rig.eye[1]); gl.uniform2f(u.mouth, rig.mouth[0], rig.mouth[1]);
+    gl.uniform2f(u.noseP, rig.nose[0], rig.nose[1]); gl.uniform2f(u.noseRoot, rig.noseRoot[0], rig.noseRoot[1]);
+    gl.uniform2f(u.knuckle, rig.knuckle[0], rig.knuckle[1]);
+    const [ex, ey, eth, erx, ery] = rig.ellipse; gl.uniform4f(u.ell, ex, ey, erx, ery); gl.uniform1f(u.ellA, eth);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    // per-scale wind response, fixed once: how much its tip catches the wind, and its own little flutter phase
+    const wd = [1 / Math.hypot(1, .22), .22 / Math.hypot(1, .22)];
+    const scales = rig.sprites.filter((s) => s.tip).map((s) => {
+      const dx = s.tip![0] - s.pivot[0], dy = s.tip![1] - s.pivot[1], L = Math.hypot(dx, dy) || 1;
+      const k = (-dy / L) * wd[0] + (dx / L) * wd[1];                 // tip moves sideways along the wind
+      const size = Math.min(1, Math.sqrt((s.area || 2000) / 6000));
+      return { s, k, amp: .08 * Math.pow(Math.min(.95, s.out || .5), 1.4) * (.6 + .4 * size), ph: Math.random() * 6.28, delay: s.pivot[0] / W * 1.3,
+        cx: (s.pivot[0] + s.tip![0]) / 2, cy: (s.pivot[1] + s.tip![1]) / 2, ux: dx / L, uy: dy / L, L, lift: spring(.22, .7),
+        flex: (.12 + .88 * ease(((s.out || .5) - .45) / .3)) * (1 - .85 * ease(((s.out || .5) - .8) / .12)) };                      // ~0.1 in the middle, 1 at the outer rim
+    });
+    const rotAbout = (a: number, px: number, py: number) => { const c = Math.cos(a), s = Math.sin(a);
+      return [c, s, 0, -s, c, 0, px - c * px + s * py, py - s * px - c * py, 1]; };          // column-major mat3
+    const mul = (A: number[], B: number[]) => { const r = new Array(9).fill(0);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) r[j * 3 + i] += A[k * 3 + i] * B[j * 3 + k]; return r; };
+    const I = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    const tailAx = (() => { const tp = rig.sprites.find((s) => s.name === "tail")!.pivot, dx = 798 - tp[0], dy = 394 - tp[1], L = Math.hypot(dx, dy); return [dx / L, dy / L, L]; })();
+    const bend1 = (root: number[], ux: number, uy: number, L: number, a: number, a2: number) => {
+      gl.uniform2f(u.bRoot, root[0], root[1]); gl.uniform2f(u.bAx, ux, uy); gl.uniform1f(u.bLen, L); gl.uniform1f(u.bA, a); gl.uniform1f(u.bA2, a2); };
+    const draw1 = (s: { rect: number[]; at: number[] }, M: number[], kind: number) => {
+      gl.uniform4f(u.rect, s.rect[0], s.rect[1], s.rect[2], s.rect[3]); gl.uniform2f(u.at, s.at[0], s.at[1]);
+      gl.uniformMatrix3fv(u.M, false, M); gl.uniform1i(u.kind, kind); gl.uniform1f(u.pad, kind === 5 ? 16 : 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    };
+    const fit = () => { const r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
+      cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); gl.viewport(0, 0, cv.width, cv.height); };
+    wrap.classList.add("on"); fit(); addEventListener("resize", fit);
+    const t0 = now();
+    const frame = () => {
+      const t = now() - t0, g = gust(t);
+      mouse.sx += (mouse.x - mouse.sx) * .35; mouse.sy += (mouse.y - mouse.sy) * .35; mouse.son += (mouse.on - mouse.son) * .12;
+      mouse.vx *= .9; mouse.vy *= .9; happy = Math.max(0, happy - .0025);
+      const nb = Math.hypot((mouse.sx - .5) / .55, (mouse.sy - .5) / .6); mouse.near += ((mouse.son && nb < 1.2 ? 1 : 0) * mouse.son - mouse.near) * .12;
+      life.step(t, g);
+      while (pulses.length && t - pulses[0].t > 3) pulses.shift();
+      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(u.t, t); gl.uniform1f(u.light, g); gl.uniform1f(u.smile, life.smile); gl.uniform1f(u.nose, life.nose);
+      gl.uniform1f(u.blink, life.blink); gl.uniform1f(u.squint, Math.min(1, happy * 2.2)); gl.uniform1f(u.mon, mouse.near); gl.uniform2f(u.mpos, mouse.sx * W, mouse.sy * H); gl.uniform1f(u.claw, life.claw.x * AMP); gl.uniform1f(u.cometA, (t * .35) % 6.2832 - 3.1416);
+      // base plate (static)
+      gl.bindTexture(gl.TEXTURE_2D, tBase); gl.uniform2f(u.atl, W, H); draw1({ rect: [0, 0, W, H], at: [0, 0] }, I, 0);
+      gl.bindTexture(gl.TEXTURE_2D, tAtlas); gl.uniform2f(u.atl, rig.AW, rig.AH);
+      const mHead = rotAbout(life.head.x * AMP, ...(rig.sprites.find((s) => s.name === "head")!.pivot as [number, number]));
+      for (const sp of rig.sprites) {
+        let M = I, kind = 0;
+        if (sp.tip) {
+          const sc = scales.find((q) => q.s === sp)!;
+          const w = gust(t - sc.delay);
+          let a = sc.amp * .7 * (sc.k * (w - .35) + .22 * Math.sin(t * .9 + sc.ph) * w) * sc.flex;
+          // petting: scales near the cursor lift and shiver; a stroke bends them the way the hand moves
+          const ddx = sc.cx - mouse.sx * W, ddy = sc.cy - mouse.sy * H, prox = mouse.son * Math.exp(-(ddx * ddx + ddy * ddy) / (2 * 125 * 125));
+          const bend = (-sc.uy * mouse.vx + sc.ux * mouse.vy) / 60;    // stroke direction across the scale
+          const common = Math.max(-.05, Math.min(.05, (mouse.vx * .6 - mouse.vy * .25) / 60));         // one direction for the whole patch
+          let shiver = 0;
+          for (const pu of pulses) { const d = Math.hypot(sc.cx - pu.x, sc.cy - pu.y), tau = t - pu.t - d / 650;
+            if (tau > 0 && tau < 1.8) shiver += pu.s * Math.exp(-d * d / (2 * 230 * 230)) * Math.sin(tau * 13) * Math.exp(-tau * 2.6); }
+          sc.lift.step(prox * (Math.max(-.13, Math.min(.13, common * 2.4)) + .04 * Math.sin(t * 2.4 + sc.cx * .004) * (.7 + happy) + .015 * Math.sin(t * 2.1 + sc.ph) + .055) + .085 * shiver);
+          a += sc.lift.x * Math.max(sc.flex, .45 * (1 - .8 * ease(((sc.s.out || .5) - .82) / .12)));
+          if (sp.parent === "head") a = 0;
+          bend1(sp.pivot, sc.ux, sc.uy, sc.L, a * AMP, a * AMP); kind = 5;
+          if (sp.parent === "head") M = mHead;
+        } else if (sp.name === "head") { M = mHead; kind = 1; }
+        else if (sp.name === "arm") { M = rotAbout(life.arm.x * AMP, sp.pivot[0], sp.pivot[1]); kind = 4; }
+        else if (sp.name === "tail") { bend1(sp.pivot, tailAx[0], tailAx[1], tailAx[2], life.tail.x * AMP, life.tailTip.x * AMP); kind = 5; }
+        else if (sp.name === "shield") kind = 2;
+        else if (sp.name === "ring") kind = 3;
+        draw1(sp, M, kind);
+      }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  };
+  start().catch((e) => { console.warn("rig", e); wrap.dataset.s = "fail " + e; });
+
+  // ---------------------------------------------------------------- pointer + golden rain (same as the homepage)
+  const RAIN = true;                                   // golden rain (settings identical to the homepage)
+  if (host && sp_cv) host.addEventListener("mousemove", (e) => {             // pointer only (no rain)
+    const c = cv.getBoundingClientRect();
+    mouse.x = (e.clientX - c.left) / c.width; mouse.y = (e.clientY - c.top) / c.height;
+    mouse.on = mouse.x > -.15 && mouse.x < 1.15 && mouse.y > -.15 && mouse.y < 1.15 ? 1 : 0;
+    if (Math.hypot(e.clientX - (c.left + .652 * c.width), e.clientY - (c.top + .27 * c.height)) < 70) life.blinkNow(now());
+    mouse.vx += e.movementX / c.width * 1024 * .35; mouse.vy += e.movementY / c.height * 757 * .35;
+    const bx = (mouse.x - .45) / .32, by = (mouse.y - .6) / .34;
+    if (bx * bx + by * by < 1) { const sp = Math.min(40, Math.hypot(e.movementX, e.movementY)); happy = Math.min(1, happy + sp * .0034);
+      petN += sp; if (petN > 280) { petN = 0; life.petted(now()); } }
+  });
+  host?.addEventListener("mouseleave", () => { mouse.on = 0; });
+  let petN = 0;
+  if (host && sp_cv && RAIN) {
+    const ctx = sp_cv.getContext("2d")!;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const spr = document.createElement("canvas"); spr.width = spr.height = 48;
+    const sc = spr.getContext("2d")!; const gr = sc.createRadialGradient(24, 24, 0, 24, 24, 24);
+    gr.addColorStop(0, "rgba(255,250,232,1)"); gr.addColorStop(.12, "rgba(255,238,196,.95)");
+    gr.addColorStop(.35, "rgba(236,196,122,.45)"); gr.addColorStop(1, "rgba(200,145,63,0)");
+    sc.fillStyle = gr; sc.fillRect(0, 0, 48, 48);
+    type P = { x: number; y: number; vx: number; vy: number; life: number; decay: number; r: number; tw: number; glint: boolean; g: number };
+    const ps: P[] = []; let W = 0, H = 0, f = 0, rx = -9999, ry = -9999, lastRain = 0;
+    const fit = () => { const r = host.getBoundingClientRect(); W = r.width; H = r.height; sp_cv.width = W * dpr; sp_cv.height = H * dpr; };
+    fit(); window.addEventListener("resize", fit);
+    const spawn = (x: number, y: number, n: number, spread: number, fall = 1, glow = 1) => {
+      for (let i = 0; i < n; i++) ps.push({ x: x + (Math.random() - .5) * spread, y: y + (Math.random() - .5) * spread * .35,
+        vx: (Math.random() - .5) * .2, vy: (.1 + Math.random() * .35) * fall, life: 1, decay: .0022 + Math.random() * .0035,
+        r: .8 + Math.random() * 2, tw: Math.random() * 6.28, glint: Math.random() < .2 * glow, g: glow });
+      if (ps.length > 1600) ps.splice(0, ps.length - 1600);
+    };
+    let petX = 0;
+    host.addEventListener("mousemove", (e) => {
+      const r = host.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      rx = x; ry = y;
+      const tt = performance.now(); if (tt - lastRain > 22) { lastRain = tt; spawn(x, y - 30, 7, 320, .9, 1.3); }
+    });
+    host.addEventListener("mouseleave", () => { mouse.on = 0; rx = ry = -9999; });
+    const frame = () => {
+      f++;
+      if (f % 3 === 0 && Math.random() < .81) spawn(Math.random() * W, Math.random() * H, 1, 0, .72, .7);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = "lighter";
+      for (let i = ps.length - 1; i >= 0; i--) {
+        const p = ps[i];
+        p.vy += .00108; p.vx += Math.sin((p.y + p.tw * 50) * .015) * .004; p.vx *= .985;
+        const dx = p.x - rx, dy = p.y - ry, d2 = dx * dx + dy * dy; let near = 0;
+        if (d2 < 140 * 140) { const d = Math.sqrt(d2) || 1; near = 1 - d / 140; p.vx += (dx / d) * near * .06; }
+        p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+        if (p.life <= 0 || p.y > H + 10) { ps.splice(i, 1); continue; }
+        const a = Math.min(1, (1 - p.life) * 10) * Math.min(1, p.life * 1.6) * (.6 + .4 * Math.sin(f * .09 + p.tw)) * p.g * (1 + .6 * near);
+        ctx.globalAlpha = Math.min(1, a); const s = p.r * 7 * (p.g > 1 ? 1.45 : 1); ctx.drawImage(spr, p.x - s / 2, p.y - s / 2, s, s);
+        if (p.glint && a > .35) {
+          const g = p.r * (4 + 2.5 * Math.sin(f * .07 + p.tw)); ctx.strokeStyle = `rgba(255,242,212,${a})`; ctx.lineWidth = .7;
+          ctx.beginPath(); ctx.moveTo(p.x - g, p.y); ctx.lineTo(p.x + g, p.y); ctx.moveTo(p.x, p.y - g); ctx.lineTo(p.x, p.y + g); ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1; requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+</script>
